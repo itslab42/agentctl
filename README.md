@@ -2,6 +2,13 @@
 
 `agentctl` keeps AI coding-agent configuration in one runtime-neutral `.ai/` directory and generates settings for Claude Code, Codex CLI, and OpenCode.
 
+## Install
+
+```bash
+pnpm add -D @lab42/agentctl@next
+pnpm exec agentctl sync
+```
+
 ## Commands
 
 ```bash

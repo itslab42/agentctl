@@ -1,31 +1,34 @@
 {
-  "name": "agentctl",
+  "name": "@lab42/agentctl",
   "version": "0.1.0-rc.0",
   "description": "Single source of truth for AI coding-agent configuration",
+  "license": "Apache-2.0",
   "bin": {
-    "agentctl": "./dist/cli.js"
+    "agentctl": "dist/cli.js"
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "type": "commonjs",
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm build:tsc && pnpm minify",
+    "build:tsc": "tsc -p tsconfig.json",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint src tests",
     "lint:fix": "oxlint --fix src tests",
+    "minify": "node scripts/minify.mjs",
     "release:preflight": "pnpm check && pnpm build && pnpm pack --pack-destination .artifacts",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.tests.json && node --test dist-test/tests/*.test.js",
-    "prepack": "pnpm check && pnpm build",
-    "prepare": "lefthook install"
+    "prepack": "pnpm check && pnpm build"
   },
   "dependencies": {
     "yaml": "^2.8.1"
@@ -33,6 +36,7 @@
   "devDependencies": {
     "@types/node": "^24.3.0",
     "lefthook": "^2.1.10",
+    "oxc-minify": "^0.146.0",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
     "typescript": "^5.9.2"
