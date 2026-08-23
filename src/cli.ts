@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { basename, relative, resolve } from "node:path";
 import { loadSource } from "./config";
 import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
@@ -70,14 +70,81 @@ function unifiedDiff(path: string, before: string | undefined, after: string): s
   return body.join("\n") + "\n";
 }
 
+async function projectName(root: string): Promise<string> {
+  try {
+    const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8")) as {
+      name?: unknown;
+    };
+    if (typeof pkg.name === "string" && pkg.name.length > 0) return pkg.name;
+  } catch {
+    // fall through
+  }
+  return basename(root);
+}
+
+async function runInit(root: string): Promise<void> {
+  const aiDir = resolve(root, ".ai");
+  if (existsSync(aiDir)) {
+    console.error("❌ .ai/ already exists. Remove it first if you want to re-initialize.");
+    process.exitCode = 1;
+    return;
+  }
+  const name = await projectName(root);
+  const config = `project:
+  name: ${name}
+
+agents:
+  default: claude
+
+runtimes:
+  claude:
+    enabled: true
+  codex:
+    enabled: false
+  opencode:
+    enabled: false
+
+sync:
+  permissions: true
+  agents: false
+
+files:
+  permissions: .ai/permissions.yaml
+  agents: .ai/agents.yaml
+  rules: .ai/rules.md
+  workflows: .ai/workflows
+`;
+  const permissions = `policy:
+  precedence: deny_over_allow
+
+filesystem:
+  edit: allow
+  write: allow
+
+shell:
+  default: ask
+  allow: []
+  deny: []
+`;
+  await mkdir(aiDir, { recursive: true });
+  await writeFile(resolve(aiDir, "config.yaml"), config, "utf8");
+  await writeFile(resolve(aiDir, "permissions.yaml"), permissions, "utf8");
+  console.log("✅ Initialized .ai/config.yaml and .ai/permissions.yaml");
+  console.log("   Edit them, then run: agentctl sync");
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2];
-  if (!command || !["sync", "check", "validate", "diff"].includes(command)) {
-    console.error("Usage: agentctl <sync|check|validate|diff>");
+  if (!command || !["init", "sync", "check", "validate", "diff"].includes(command)) {
+    console.error("Usage: agentctl <init|sync|check|validate|diff>");
     process.exitCode = 2;
     return;
   }
   const root = process.cwd();
+  if (command === "init") {
+    await runInit(root);
+    return;
+  }
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
     source = await loadSource(root);

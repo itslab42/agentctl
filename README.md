@@ -5,17 +5,21 @@
 ## Install
 
 ```bash
-pnpm add -D @lab42/agentctl@next
+pnpm add -D @lab42/agentctl
+
+# quick start
+pnpm exec agentctl init
 pnpm exec agentctl sync
 ```
 
 ## Commands
 
 ```bash
-pnpm exec agentctl validate
-pnpm exec agentctl sync
-pnpm exec agentctl check
-pnpm exec agentctl diff
+pnpm exec agentctl init      # scaffold .ai/config.yaml and .ai/permissions.yaml
+pnpm exec agentctl validate  # validate source files without generating anything
+pnpm exec agentctl sync      # write generated agent config files
+pnpm exec agentctl check     # report drift without writing
+pnpm exec agentctl diff      # unified diff of what sync would change
 ```
 
 Run commands from the target project directory. `sync` is the only command that writes generated files. `check` and `diff` only compare against the configuration generated in memory.
