@@ -1,6 +1,6 @@
 {
   "name": "@lab42/agentctl",
-  "version": "0.2.0-rc.4",
+  "version": "0.2.0",
   "description": "Single source of truth for AI coding-agent configuration",
   "license": "Apache-2.0",
   "bin": {
