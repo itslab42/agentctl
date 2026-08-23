@@ -89,43 +89,13 @@ async function runInit(root: string): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  const stubsDir = resolve(__dirname, "stubs");
   const name = await projectName(root);
-  const config = `project:
-  name: ${name}
-
-agents:
-  default: claude
-
-runtimes:
-  claude:
-    enabled: true
-  codex:
-    enabled: false
-  opencode:
-    enabled: false
-
-sync:
-  permissions: true
-  agents: false
-
-files:
-  permissions: .ai/permissions.yaml
-  agents: .ai/agents.yaml
-  rules: .ai/rules.md
-  workflows: .ai/workflows
-`;
-  const permissions = `policy:
-  precedence: deny_over_allow
-
-filesystem:
-  edit: allow
-  write: allow
-
-shell:
-  default: ask
-  allow: []
-  deny: []
-`;
+  const config = (await readFile(resolve(stubsDir, "config.yaml"), "utf8")).replace(
+    "__PROJECT_NAME__",
+    name
+  );
+  const permissions = await readFile(resolve(stubsDir, "permissions.yaml"), "utf8");
   await mkdir(aiDir, { recursive: true });
   await writeFile(resolve(aiDir, "config.yaml"), config, "utf8");
   await writeFile(resolve(aiDir, "permissions.yaml"), permissions, "utf8");

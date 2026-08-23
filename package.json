@@ -1,6 +1,6 @@
 {
   "name": "@lab42/agentctl",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0-rc.2",
   "description": "Single source of truth for AI coding-agent configuration",
   "license": "Apache-2.0",
   "bin": {
@@ -17,8 +17,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "pnpm build:tsc && pnpm minify",
+    "build": "pnpm build:tsc && pnpm build:stubs && pnpm minify",
     "build:tsc": "tsc -p tsconfig.json",
+    "build:stubs": "cp -r src/stubs dist/stubs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",

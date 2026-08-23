@@ -1,0 +1,11 @@
+policy:
+  precedence: deny_over_allow
+
+filesystem:
+  edit: allow
+  write: allow
+
+shell:
+  default: ask
+  allow: []
+  deny: []
