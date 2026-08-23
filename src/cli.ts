@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { loadSource } from "./config";
+import { unifiedDiff } from "./diff";
 import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
 import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
@@ -57,19 +58,6 @@ function display(root: string, path: string): string {
   return relative(root, path) || path;
 }
 
-function unifiedDiff(path: string, before: string | undefined, after: string): string {
-  const oldLines = (before ?? "").split("\n");
-  const newLines = after.split("\n");
-  const body = [
-    "--- a/" + path,
-    "+++ b/" + path,
-    `@@ -1,${oldLines.length} +1,${newLines.length} @@`,
-    ...oldLines.map((line) => `-${line}`),
-    ...newLines.map((line) => `+${line}`)
-  ];
-  return body.join("\n") + "\n";
-}
-
 async function projectName(root: string): Promise<string> {
   try {
     const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8")) as {
@@ -101,6 +89,7 @@ async function runInit(root: string): Promise<void> {
   await writeFile(resolve(aiDir, "permissions.yaml"), permissions, "utf8");
   console.log("✅ Initialized .ai/config.yaml and .ai/permissions.yaml");
   console.log("   Edit them, then run: agentctl sync");
+  console.log("   Tip: add generated dirs to .gitignore (.claude/ .codex/ .opencode/)");
 }
 
 async function main(): Promise<void> {

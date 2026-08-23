@@ -5,10 +5,9 @@ import { Permissions, parsePermissions } from "./permissions";
 
 export interface AgentctlConfig {
   project: { name: string };
-  agents: { default: string };
   runtimes: Record<"claude" | "codex" | "opencode", { enabled: boolean }>;
-  sync: { permissions: boolean; agents: boolean };
-  files: { permissions: string; agents: string; rules: string; workflows: string };
+  sync: { permissions: boolean };
+  files: { permissions: string };
 }
 
 function object(value: unknown, label: string): Record<string, unknown> {
@@ -32,28 +31,18 @@ function runtime(raw: Record<string, unknown>, name: string): { enabled: boolean
 export function parseConfig(raw: unknown): AgentctlConfig {
   const root = object(raw, "config");
   const project = object(root.project, "project");
-  const agents = object(root.agents, "agents");
   const runtimes = object(root.runtimes, "runtimes");
   const sync = object(root.sync, "sync");
   const files = object(root.files, "files");
   return {
     project: { name: string(project.name, "project.name") },
-    agents: { default: string(agents.default, "agents.default") },
     runtimes: {
       claude: runtime(runtimes, "claude"),
       codex: runtime(runtimes, "codex"),
       opencode: runtime(runtimes, "opencode")
     },
-    sync: {
-      permissions: bool(sync.permissions, "sync.permissions"),
-      agents: bool(sync.agents, "sync.agents")
-    },
-    files: {
-      permissions: string(files.permissions, "files.permissions"),
-      agents: string(files.agents, "files.agents"),
-      rules: string(files.rules, "files.rules"),
-      workflows: string(files.workflows, "files.workflows")
-    }
+    sync: { permissions: bool(sync.permissions, "sync.permissions") },
+    files: { permissions: string(files.permissions, "files.permissions") }
   };
 }
 

@@ -1,9 +1,6 @@
 project:
   name: __PROJECT_NAME__
 
-agents:
-  default: claude
-
 runtimes:
   claude:
     enabled: true
@@ -14,10 +11,6 @@ runtimes:
 
 sync:
   permissions: true
-  agents: false
 
 files:
   permissions: .ai/permissions.yaml
-  agents: .ai/agents.yaml
-  rules: .ai/rules.md
-  workflows: .ai/workflows
