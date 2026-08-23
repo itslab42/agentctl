@@ -23,11 +23,15 @@ function permission(value: unknown, label: string): PermissionValue {
 }
 
 function patterns(value: unknown, label: string): string[] {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || item.length === 0)) {
+  if (
+    !Array.isArray(value) ||
+    value.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
     throw new Error(`${label} must be an array of non-empty strings`);
   }
   const result = value as string[];
-  if (new Set(result).size !== result.length) throw new Error(`${label} contains duplicate patterns`);
+  if (new Set(result).size !== result.length)
+    throw new Error(`${label} contains duplicate patterns`);
   return result;
 }
 
@@ -53,7 +57,8 @@ export function parsePermissions(raw: unknown): Permissions {
     }
   };
   const overlap = parsed.shell.allow.filter((pattern) => parsed.shell.deny.includes(pattern));
-  if (overlap.length) throw new Error(`contradictory shell allow/deny patterns: ${overlap.join(", ")}`);
+  if (overlap.length)
+    throw new Error(`contradictory shell allow/deny patterns: ${overlap.join(", ")}`);
   return parsed;
 }
 

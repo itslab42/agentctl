@@ -1,16 +1,31 @@
 {
   "name": "agentctl",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.0-rc.0",
   "description": "Single source of truth for AI coding-agent configuration",
-  "type": "commonjs",
   "bin": {
     "agentctl": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "commonjs",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint src tests",
+    "lint:fix": "oxlint --fix src tests",
+    "release:preflight": "pnpm check && pnpm build && pnpm pack --pack-destination .artifacts",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.tests.json && node --test dist-test/tests/*.test.js"
+    "test": "tsc -p tsconfig.tests.json && node --test dist-test/tests/*.test.js",
+    "prepack": "pnpm check && pnpm build",
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "yaml": "^2.8.1"

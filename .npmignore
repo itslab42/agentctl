@@ -1,0 +1,12 @@
+.ai
+.artifacts
+.idea
+.lefthook
+.pnpm-store
+dist-test
+node_modules
+src
+tests
+tsconfig.tests.json
+lefthook.yml
+.oxfmtrc.json

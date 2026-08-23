@@ -1,8 +1,14 @@
 import { Permissions, globToRegexSource } from "../permissions";
 
 export function renderCodexConfig(permissions: Permissions): string {
-  const writable = permissions.filesystem.edit === "allow" || permissions.filesystem.write === "allow";
-  const approval = permissions.shell.default === "ask" ? "on-request" : permissions.shell.default === "deny" ? "never" : "never";
+  const writable =
+    permissions.filesystem.edit === "allow" || permissions.filesystem.write === "allow";
+  const approval =
+    permissions.shell.default === "ask"
+      ? "on-request"
+      : permissions.shell.default === "deny"
+        ? "never"
+        : "never";
   return `approval_policy = "${approval}"\nsandbox_mode = "${writable ? "workspace-write" : "read-only"}"\n\n[hooks.PreToolUse]\nBash = ".codex/hooks/permission-policy.py"\n`;
 }
 
