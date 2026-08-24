@@ -1,6 +1,6 @@
 {
   "name": "@lab42/agentctl",
-  "version": "0.2.3-rc.3",
+  "version": "0.2.3-rc.4",
   "description": "Single source of truth for AI coding-agent configuration",
   "license": "Apache-2.0",
   "bin": {
@@ -30,7 +30,7 @@
     "release:preflight": "pnpm check && pnpm build && pnpm pack --pack-destination .artifacts",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.tests.json && node --test dist-test/tests/*.test.js",
-    "prepack": "pnpm check && pnpm build"
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "yaml": "^2.8.1"
