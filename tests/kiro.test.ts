@@ -16,7 +16,16 @@ test("Kiro renders valid YAML with correct rule structure", () => {
     rules: Array<{ capability: string; effect: string; match?: string[]; exclude?: string[] }>;
   };
   assert.ok(Array.isArray(parsed.rules), "output must have a rules array");
-  assert.equal(parsed.rules.length, 4);
+  // fs_read, fs_write, shell deny, shell allow, shell catch-all = 6
+  assert.equal(parsed.rules.length, 5);
+});
+
+test("Kiro emits fs_read allow without match (global)", () => {
+  const output = renderKiro(permissions);
+  const parsed = parse(output) as {
+    rules: Array<{ capability: string; effect: string; match?: string[] }>;
+  };
+  assert.deepEqual(parsed.rules[0], { capability: "fs_read", effect: "allow", match: ["**"] });
 });
 
 test("Kiro emits fs_read allow and fs_write allow with match **", () => {
@@ -28,14 +37,14 @@ test("Kiro emits fs_read allow and fs_write allow with match **", () => {
   assert.deepEqual(parsed.rules[1], { capability: "fs_write", effect: "allow", match: ["**"] });
 });
 
-test("Kiro emits shell deny patterns as exclude on allow rule", () => {
+test("Kiro emits shell deny patterns as a standalone deny rule", () => {
   const output = renderKiro(permissions);
   const parsed = parse(output) as {
     rules: Array<{ capability: string; effect: string; match?: string[]; exclude?: string[] }>;
   };
-  const allowRule = parsed.rules.find((r) => r.capability === "shell" && r.effect === "allow");
-  assert.ok(allowRule, "must have a shell allow rule");
-  assert.deepEqual(allowRule.exclude, ["git push *"]);
+  const denyRule = parsed.rules.find((r) => r.capability === "shell" && r.effect === "deny");
+  assert.ok(denyRule, "must have a shell deny rule");
+  assert.deepEqual(denyRule.match, ["git push *"]);
 });
 
 test("Kiro emits shell allow rules with match patterns", () => {
@@ -46,6 +55,16 @@ test("Kiro emits shell allow rules with match patterns", () => {
   const allowRule = parsed.rules.find((r) => r.capability === "shell" && r.effect === "allow");
   assert.ok(allowRule, "must have a shell allow rule");
   assert.deepEqual(allowRule.match, ["git *", "pnpm *"]);
+});
+
+test("Kiro shell allow rule has no exclude field", () => {
+  const output = renderKiro(permissions);
+  const parsed = parse(output) as {
+    rules: Array<{ capability: string; effect: string; match?: string[]; exclude?: string[] }>;
+  };
+  const allowRule = parsed.rules.find((r) => r.capability === "shell" && r.effect === "allow");
+  assert.ok(allowRule, "must have a shell allow rule");
+  assert.equal(allowRule.exclude, undefined);
 });
 
 test("Kiro emits shell default as catch-all (no match field)", () => {
