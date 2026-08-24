@@ -17,7 +17,7 @@ export const claudeDefaults: ClaudeSettings = {
 
 export interface AgentctlConfig {
   project: { name: string };
-  runtimes: Record<"claude" | "codex" | "kiro" | "opencode", { enabled: boolean }>;
+  runtimes: Record<"claude" | "codex" | "cursor" | "kiro" | "opencode", { enabled: boolean }>;
   claude: ClaudeSettings;
   sync: { permissions: boolean };
   files: { permissions: string };
@@ -78,6 +78,7 @@ export function parseConfig(raw: unknown): AgentctlConfig {
     runtimes: {
       claude: runtime(runtimes, "claude"),
       codex: runtime(runtimes, "codex"),
+      cursor: runtime(runtimes, "cursor"),
       kiro: runtime(runtimes, "kiro"),
       opencode: runtime(runtimes, "opencode")
     },

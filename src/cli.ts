@@ -8,6 +8,7 @@ import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
 import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
 import { renderKiro } from "./adapters/kiro";
+import { renderCursorRule } from "./adapters/cursor";
 import { scan } from "./scan";
 
 interface GeneratedFile {
@@ -45,6 +46,12 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
       executable: true
     });
   }
+  if (source.config.runtimes.cursor.enabled)
+    files.push({
+      runtime: "Cursor",
+      path: resolve(root, ".cursor/rules/agentctl-permissions/RULE.md"),
+      content: renderCursorRule(source.permissions)
+    });
   if (source.config.runtimes.kiro.enabled)
     files.push({
       runtime: "Kiro",
@@ -201,7 +208,7 @@ async function main(): Promise<void> {
   const files = expected(root, source);
 
   if (command === "status") {
-    const allRuntimes = ["claude", "codex", "kiro", "opencode"] as const;
+    const allRuntimes = ["claude", "codex", "cursor", "kiro", "opencode"] as const;
     let drift = false;
     for (const name of allRuntimes) {
       const enabled = source.config.runtimes[name].enabled;

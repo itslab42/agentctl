@@ -6,6 +6,8 @@ runtimes:
     enabled: true
   codex:
     enabled: false
+  cursor:
+    enabled: false
   kiro:
     enabled: false
   opencode:
