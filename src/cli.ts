@@ -108,8 +108,8 @@ async function main(): Promise<void> {
     console.log(pkg.version);
     return;
   }
-  if (!command || !["init", "sync", "check", "validate", "diff"].includes(command)) {
-    console.error("Usage: agentctl <init|sync|check|validate|diff|--version>");
+  if (!command || !["init", "sync", "check", "validate", "diff", "status"].includes(command)) {
+    console.error("Usage: agentctl <init|sync|check|validate|diff|status|--version>");
     process.exitCode = 2;
     return;
   }
@@ -131,6 +131,37 @@ async function main(): Promise<void> {
     return;
   }
   const files = expected(root, source);
+
+  if (command === "status") {
+    const allRuntimes = ["claude", "codex", "kiro", "opencode"] as const;
+    let drift = false;
+    for (const name of allRuntimes) {
+      const enabled = source.config.runtimes[name].enabled;
+      if (!enabled) {
+        console.log(`${name.padEnd(10)} – not configured`);
+        continue;
+      }
+      const runtimeFiles = files.filter((f) => f.runtime.toLowerCase() === name);
+      const diffs: string[] = [];
+      for (const file of runtimeFiles) {
+        const before = await current(file.path);
+        const differs =
+          before !== file.content ||
+          (file.executable &&
+            (!existsSync(file.path) || ((await stat(file.path)).mode & 0o111) === 0));
+        if (differs) diffs.push(display(root, file.path));
+      }
+      if (diffs.length > 0) {
+        drift = true;
+        console.log(`${name.padEnd(10)} ✗ out of sync (${diffs.join(", ")})`);
+      } else {
+        console.log(`${name.padEnd(10)} ✓ in sync`);
+      }
+    }
+    if (drift) process.exitCode = 1;
+    return;
+  }
+
   if (command === "sync") {
     console.log("🤖 Syncing agent configurations...\n");
     for (const file of files) {

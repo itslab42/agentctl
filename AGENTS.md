@@ -19,7 +19,7 @@ Single source of truth for AI coding-agent configuration. Keeps a runtime-neutra
 .ai/permissions.yaml     ← runtime-neutral permissions (deny_over_allow)
 src/config.ts            ← parses & validates config.yaml
 src/permissions.ts       ← parses & validates permissions.yaml
-src/cli.ts              ← CLI entry point (init, sync, check, validate, diff)
+src/cli.ts              ← CLI entry point (init, sync, check, validate, diff, status)
 src/adapters/claude.ts   ← renders .claude/settings.json
 src/adapters/codex.ts    ← renders .codex/config.toml + hooks/permission-policy.py
 src/adapters/opencode.ts ← renders .opencode/opencode.json
@@ -46,6 +46,7 @@ agentctl validate  # check .ai/ files parse correctly
 agentctl sync      # generate all enabled runtime configs
 agentctl check     # report drift (exit 1 if out of sync)
 agentctl diff      # unified diff of pending changes
+agentctl status    # one-line sync summary per runtime (exit 1 if drift)
 agentctl --version # print version
 ```
 
