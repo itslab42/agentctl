@@ -24,6 +24,7 @@ function bool(value: unknown, label: string): boolean {
   return value;
 }
 function runtime(raw: Record<string, unknown>, name: string): { enabled: boolean } {
+  if (!(name in raw)) return { enabled: false };
   const value = object(raw[name], `runtimes.${name}`);
   return { enabled: bool(value.enabled, `runtimes.${name}.enabled`) };
 }
@@ -31,7 +32,7 @@ function runtime(raw: Record<string, unknown>, name: string): { enabled: boolean
 export function parseConfig(raw: unknown): AgentctlConfig {
   const root = object(raw, "config");
   const project = object(root.project, "project");
-  const runtimes = object(root.runtimes, "runtimes");
+  const runtimes = root.runtimes ? object(root.runtimes, "runtimes") : {};
   const sync = object(root.sync, "sync");
   const files = object(root.files, "files");
   return {
