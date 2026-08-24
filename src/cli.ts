@@ -7,6 +7,7 @@ import { unifiedDiff } from "./diff";
 import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
 import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
+import { renderKiro } from "./adapters/kiro";
 
 interface GeneratedFile {
   path: string;
@@ -43,6 +44,12 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
       executable: true
     });
   }
+  if (source.config.runtimes.kiro.enabled)
+    files.push({
+      runtime: "Kiro",
+      path: resolve(root, ".kiro/settings/permissions.yaml"),
+      content: renderKiro(source.permissions)
+    });
   return files;
 }
 

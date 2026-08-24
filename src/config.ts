@@ -5,7 +5,7 @@ import { Permissions, parsePermissions } from "./permissions";
 
 export interface AgentctlConfig {
   project: { name: string };
-  runtimes: Record<"claude" | "codex" | "opencode", { enabled: boolean }>;
+  runtimes: Record<"claude" | "codex" | "kiro" | "opencode", { enabled: boolean }>;
   sync: { permissions: boolean };
   files: { permissions: string };
 }
@@ -39,6 +39,7 @@ export function parseConfig(raw: unknown): AgentctlConfig {
     runtimes: {
       claude: runtime(runtimes, "claude"),
       codex: runtime(runtimes, "codex"),
+      kiro: runtime(runtimes, "kiro"),
       opencode: runtime(runtimes, "opencode")
     },
     sync: { permissions: bool(sync.permissions, "sync.permissions") },
