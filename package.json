@@ -23,6 +23,8 @@
   },
   "scripts": {
     "build": "pnpm build:tsc && pnpm build:stubs && pnpm minify",
+    "postbuild": "node dist/cli.js sync",
+    "agentctl": "node dist/cli.js",
     "build:tsc": "tsc -p tsconfig.json",
     "build:stubs": "node scripts/copy-stubs.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",

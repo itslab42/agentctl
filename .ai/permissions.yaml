@@ -1,0 +1,60 @@
+policy:
+  precedence: deny_over_allow
+
+filesystem:
+  edit: allow
+  write: allow
+
+shell:
+  default: ask
+
+  allow:
+    # Inspection
+    - "grep*"
+    - "find*"
+    - "ls*"
+    - "cat*"
+    - "wc*"
+    - "which*"
+
+    # Runtime / tooling
+    - "node --version*"
+    - "turbo*"
+    - "npx show*"
+
+    # Misc
+    - "pnpm*"
+    - "gh*"
+    - "git*"
+
+  deny:
+    # Filesystem destruction
+    - "rm -rf*"
+
+    # Destructive Git operations
+    - "git restore*"
+    - "git checkout -- *"
+    - "git rm*"
+    - "git rebase*"
+    - "git reset --hard*"
+    - "git clean*"
+
+    # Remote Git operations
+    - "git push*"
+    - "git remote*"
+
+    # Tag operations (prevent accidental releases)
+    - "git tag*"
+
+    # Pull request mutations
+    - "gh pr create*"
+    - "gh pr merge*"
+    - "gh pr close*"
+    - "gh pr edit*"
+    - "gh pr review*"
+    - "gh pr comment*"
+
+    # Repository / secret / raw API operations
+    - "gh repo delete*"
+    - "gh secret*"
+    - "gh api*"

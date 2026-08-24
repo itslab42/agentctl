@@ -1,0 +1,12 @@
+project:
+  name: "@lab42/agentctl"
+
+runtimes:
+  kiro:
+    enabled: true
+
+sync:
+  permissions: true
+
+files:
+  permissions: .ai/permissions.yaml
