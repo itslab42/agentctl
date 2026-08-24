@@ -36,7 +36,7 @@
     "release:preflight": "pnpm check && pnpm build && pnpm pack --pack-destination .artifacts",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.tests.json && node --test dist-test/tests/*.test.js",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install && pnpm agentctl sync"
   },
   "dependencies": {
     "yaml": "^2.8.1"
