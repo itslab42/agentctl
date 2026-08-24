@@ -24,9 +24,21 @@ pnpm exec agentctl validate  # validate source files without generating anything
 pnpm exec agentctl sync      # write generated agent config files
 pnpm exec agentctl check     # report drift without writing
 pnpm exec agentctl diff      # unified diff of what sync would change
+pnpm exec agentctl status    # one-line sync summary per runtime
 ```
 
-Run commands from the target project directory. `sync` is the only command that writes generated files. `check` and `diff` only compare against the configuration generated in memory.
+Run commands from the target project directory. `sync` is the only command that writes generated files. `check`, `diff`, and `status` only compare against the configuration generated in memory.
+
+`status` prints a quick overview of each runtime's sync state:
+
+```
+claude     ✓ in sync
+codex      ✗ out of sync (.codex/config.toml)
+kiro       ✓ in sync
+opencode   – not configured
+```
+
+Exits 0 if all in sync, 1 if any drift is detected (useful for CI).
 
 ## Source files
 

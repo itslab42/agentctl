@@ -9,7 +9,7 @@
 ## Commands
 
 - [ ] `agentctl add/allow/deny <pattern>` — append shell patterns to `permissions.yaml` from the CLI
-- [ ] `agentctl status` — one-line summary of which runtimes are enabled and whether they're in sync
+- [x] `agentctl status` — one-line summary of which runtimes are enabled and whether they're in sync
 - [ ] `agentctl scan` — detect existing `.claude/`, `.cursor/` etc. and generate `.ai/` from what's already there
 - [ ] `agentctl explain <command>` — show what each runtime would do with a given shell command and which rule fires
 - [ ] `agentctl audit` — cross-runtime consistency checker, report where runtimes diverge in effective policy
