@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   publish:
@@ -52,7 +51,7 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: pnpm publish --no-git-checks --tag ${{ steps.meta.outputs.npm_tag }} --provenance --access public
+        run: pnpm publish --no-git-checks --tag ${{ steps.meta.outputs.npm_tag }} --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
