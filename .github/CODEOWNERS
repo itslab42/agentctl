@@ -1,6 +1,5 @@
-# Default to project owner @iamarpitpatidar
+# Default to project owner
+* @iamarpitpatidar
 
-@iamarpitpatidar
-
-# Ignore lock files
-pnpm-lock.yaml
+# Workflows and CI — always require owner review
+.github/ @iamarpitpatidar
