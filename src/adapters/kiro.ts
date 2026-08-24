@@ -26,8 +26,6 @@ export function renderKiro(permissions: Permissions): string {
 
   // --- Filesystem rules ---
   rules.push({ capability: "fs_read", effect: "allow", match: ["**"] });
-
-  // fs_write maps to filesystem.write — full file create/overwrite.
   rules.push({ capability: "fs_write", effect: permissions.filesystem.write, match: ["**"] });
 
   // --- Shell rules ---
@@ -53,5 +51,9 @@ export function renderKiro(permissions: Permissions): string {
   // Default shell posture (catch-all).
   rules.push({ capability: "shell", effect: permissions.shell.default });
 
-  return stringify({ rules }, { lineWidth: 120 });
+  const output = stringify({ rules }, { lineWidth: 120 });
+  // Add a blank line between each rule entry for readability.
+  return output
+    .replace(/\n  - capability:/g, "\n\n  - capability:")
+    .replace("rules:\n\n", "rules:\n");
 }
