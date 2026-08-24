@@ -5,6 +5,7 @@ interface KiroRule {
   capability: string;
   effect: "allow" | "ask" | "deny";
   match?: string[];
+  exclude?: string[];
 }
 
 /**
@@ -31,21 +32,24 @@ export function renderKiro(permissions: Permissions): string {
   rules.push({ capability: "fs_write", effect: fsEffect });
 
   // --- Shell rules ---
-  // Deny patterns first (highest precedence in Kiro).
-  if (permissions.shell.deny.length > 0) {
+  // Use exclude field for deny patterns (Kiro's deny-overrides means a separate
+  // deny rule would block even when the allow list matches).
+  if (permissions.shell.allow.length > 0) {
+    const rule: KiroRule = {
+      capability: "shell",
+      effect: "allow",
+      match: permissions.shell.allow
+    };
+    if (permissions.shell.deny.length > 0) {
+      rule.exclude = permissions.shell.deny;
+    }
+    rules.push(rule);
+  } else if (permissions.shell.deny.length > 0) {
+    // No allow patterns but there are deny patterns — emit standalone deny rule.
     rules.push({
       capability: "shell",
       effect: "deny",
       match: permissions.shell.deny
-    });
-  }
-
-  // Allow patterns (explicit command allows).
-  if (permissions.shell.allow.length > 0) {
-    rules.push({
-      capability: "shell",
-      effect: "allow",
-      match: permissions.shell.allow
     });
   }
 
