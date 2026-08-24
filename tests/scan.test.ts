@@ -6,13 +6,15 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { scan } from "../src/scan";
 
-const CLI = resolve(__dirname, "..", "..", "src", "cli.ts");
+const PROJECT_ROOT = resolve(__dirname, "..", "..");
+const CLI = resolve(PROJECT_ROOT, "src", "cli.ts");
+const TSX = resolve(PROJECT_ROOT, "node_modules", ".bin", "tsx");
 
 function runScan(
   cwd: string,
   args: string[] = []
 ): { stdout: string; stderr: string; exitCode: number } {
-  const result = spawnSync("npx", ["tsx", CLI, "scan", ...args], {
+  const result = spawnSync(TSX, [CLI, "scan", ...args], {
     cwd,
     encoding: "utf8",
     env: { ...process.env, NODE_NO_WARNINGS: "1" }
