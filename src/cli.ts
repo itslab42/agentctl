@@ -8,6 +8,7 @@ import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
 import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
 import { renderKiro } from "./adapters/kiro";
+import { scan } from "./scan";
 
 interface GeneratedFile {
   path: string;
@@ -99,6 +100,66 @@ async function runInit(root: string): Promise<void> {
   console.log("   Tip: add generated dirs to .gitignore (.claude/ .codex/ .opencode/)");
 }
 
+async function runScan(root: string): Promise<void> {
+  const args = process.argv.slice(3);
+  const dryRun = args.includes("--dry-run");
+  const force = args.includes("--force");
+
+  const aiDir = resolve(root, ".ai");
+  if (existsSync(aiDir) && !force && !dryRun) {
+    console.error("❌ .ai/ already exists. Use --force to overwrite or --dry-run to preview.");
+    process.exitCode = 1;
+    return;
+  }
+
+  const result = await scan(root);
+
+  if (result.detected.length === 0) {
+    console.log("No runtime configurations detected.");
+    return;
+  }
+
+  // Print summary of detected runtimes
+  console.log("Detected runtimes:");
+  for (const runtime of result.detected) {
+    const parts: string[] = [`shell: ${runtime.shell}`];
+    if (runtime.allowPatterns.length > 0)
+      parts.push(`${runtime.allowPatterns.length} allow patterns`);
+    if (runtime.denyPatterns.length > 0) parts.push(`${runtime.denyPatterns.length} deny patterns`);
+    console.log(`  ${runtime.path.padEnd(40)} → ${parts.join(", ")}`);
+  }
+
+  // Print conflicts
+  if (result.conflicts.length > 0) {
+    console.log("");
+    for (const conflict of result.conflicts) {
+      const details = conflict.runtimes.map((r) => `${r.name} uses "${r.value}"`).join(", ");
+      console.log(`⚠ Conflict: ${details}. Defaulted to "${conflict.resolved}".`);
+    }
+  }
+
+  // Substitute project name
+  const name = await projectName(root);
+  const configYaml = result.configYaml.replace("__PROJECT_NAME__", name);
+
+  if (dryRun) {
+    console.log("\n--- .ai/config.yaml ---");
+    console.log(configYaml);
+    console.log("--- .ai/permissions.yaml ---");
+    console.log(result.permissionsYaml);
+    return;
+  }
+
+  // Write files
+  await mkdir(aiDir, { recursive: true });
+  await writeFile(resolve(aiDir, "config.yaml"), configYaml, "utf8");
+  await writeFile(resolve(aiDir, "permissions.yaml"), result.permissionsYaml, "utf8");
+
+  console.log("\nGenerated:");
+  console.log("  .ai/config.yaml");
+  console.log("  .ai/permissions.yaml");
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2];
   if (command === "--version" || command === "-V") {
@@ -108,14 +169,21 @@ async function main(): Promise<void> {
     console.log(pkg.version);
     return;
   }
-  if (!command || !["init", "sync", "check", "validate", "diff", "status"].includes(command)) {
-    console.error("Usage: agentctl <init|sync|check|validate|diff|status|--version>");
+  if (
+    !command ||
+    !["init", "sync", "check", "validate", "diff", "status", "scan"].includes(command)
+  ) {
+    console.error("Usage: agentctl <init|sync|check|validate|diff|status|scan|--version>");
     process.exitCode = 2;
     return;
   }
   const root = process.cwd();
   if (command === "init") {
     await runInit(root);
+    return;
+  }
+  if (command === "scan") {
+    await runScan(root);
     return;
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
