@@ -1,5 +1,9 @@
 # agentctl
 
+[![CI](https://github.com/itslab42/agentctl/actions/workflows/ci.yml/badge.svg)](https://github.com/itslab42/agentctl/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@lab42/agentctl)](https://www.npmjs.com/package/@lab42/agentctl)
+[![license](https://img.shields.io/npm/l/@lab42/agentctl)](./LICENSE)
+
 `agentctl` keeps AI coding-agent configuration in one runtime-neutral `.ai/` directory and generates settings for Claude Code, Codex CLI, and OpenCode.
 
 ## Install

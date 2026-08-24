@@ -1,12 +1,26 @@
-.ai
-.artifacts
-.idea
-.lefthook
-.pnpm-store
-dist-test
-node_modules
-src
-tests
+# Source & config (dist is shipped via package.json "files")
+src/
+tests/
+dist-test/
+scripts/
+
+# Build & dev tooling
+.ai/
+.artifacts/
+.github/
+.idea/
+.lefthook/
+.pnpm-store/
+node_modules/
+
+# Config files not needed in package
+tsconfig.json
 tsconfig.tests.json
 lefthook.yml
 .oxfmtrc.json
+.gitignore
+.npmignore
+pnpm-lock.yaml
+pnpm-workspace.yaml
+CONTRIBUTING.md
+todo.md
