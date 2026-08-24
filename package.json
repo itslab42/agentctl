@@ -36,7 +36,7 @@
     "release:preflight": "pnpm check && pnpm build && pnpm pack --pack-destination .artifacts",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.tests.json && node --test dist-test/tests/*.test.js",
-    "prepare": "lefthook install && pnpm agentctl sync"
+    "prepare": "lefthook install && tsx src/cli.ts sync"
   },
   "dependencies": {
     "yaml": "^2.8.1"
@@ -47,6 +47,7 @@
     "oxc-minify": "^0.146.0",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
+    "tsx": "^4.23.12",
     "typescript": "^5.9.2"
   },
   "engines": {
