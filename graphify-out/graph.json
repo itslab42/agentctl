@@ -356,7 +356,7 @@
       "file_type": "code",
       "norm_label": "mostpermissive()",
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L58"
+      "source_location": "L62"
     },
     {
       "id": "src_adapters_kiro_renderkiro",
@@ -368,7 +368,7 @@
       "file_type": "code",
       "norm_label": "renderkiro()",
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L21"
+      "source_location": "L22"
     },
     {
       "id": "src_diff_lcsops",
@@ -531,6 +531,7 @@
     {
       "id": "filesystem_permissions",
       "label": "Filesystem Permissions",
+      "_origin": "semantic",
       "community": 2,
       "community_name": "Config Stubs",
       "confidence": "EXTRACTED",
@@ -546,6 +547,7 @@
     {
       "id": "permission_policy",
       "label": "Permission Policy",
+      "_origin": "semantic",
       "community": 2,
       "community_name": "Config Stubs",
       "confidence": "EXTRACTED",
@@ -561,6 +563,7 @@
     {
       "id": "runtime_config",
       "label": "Runtime Configuration",
+      "_origin": "semantic",
       "community": 2,
       "community_name": "Config Stubs",
       "confidence": "EXTRACTED",
@@ -576,6 +579,7 @@
     {
       "id": "shell_permissions",
       "label": "Shell Permissions",
+      "_origin": "semantic",
       "community": 2,
       "community_name": "Config Stubs",
       "confidence": "EXTRACTED",
@@ -591,6 +595,7 @@
     {
       "id": "src_stubs_config_yaml_stub",
       "label": "Config YAML Stub",
+      "_origin": "semantic",
       "community": 2,
       "community_name": "Config Stubs",
       "confidence": "EXTRACTED",
@@ -606,6 +611,7 @@
     {
       "id": "src_stubs_permissions_yaml_stub",
       "label": "Permissions YAML Stub",
+      "_origin": "semantic",
       "community": 2,
       "community_name": "Config Stubs",
       "confidence": "EXTRACTED",
@@ -629,7 +635,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L30",
+      "source_location": "L31",
       "weight": 1.0
     },
     {
@@ -1297,7 +1303,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0
     },
     {
@@ -1319,7 +1325,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L58",
+      "source_location": "L62",
       "weight": 1.0
     },
     {
@@ -1667,6 +1673,7 @@
     {
       "source": "src_stubs_config_yaml_stub",
       "target": "src_stubs_permissions_yaml_stub",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "properties": {
@@ -1678,6 +1685,7 @@
     {
       "source": "src_stubs_config_yaml_stub",
       "target": "runtime_config",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "relationship": "CONTAINS",
@@ -1686,6 +1694,7 @@
     {
       "source": "src_stubs_permissions_yaml_stub",
       "target": "filesystem_permissions",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "relationship": "CONTAINS",
@@ -1694,6 +1703,7 @@
     {
       "source": "src_stubs_permissions_yaml_stub",
       "target": "permission_policy",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "relationship": "CONTAINS",
@@ -1702,6 +1712,7 @@
     {
       "source": "src_stubs_permissions_yaml_stub",
       "target": "shell_permissions",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "relationship": "CONTAINS",
@@ -1710,6 +1721,7 @@
     {
       "source": "permission_policy",
       "target": "filesystem_permissions",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.55,
       "relationship": "GOVERNS",
@@ -1718,6 +1730,7 @@
     {
       "source": "permission_policy",
       "target": "shell_permissions",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.55,
       "relationship": "GOVERNS",
@@ -1725,5 +1738,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "0464d488634b6779328044ecb2ca8bfe710657ce"
+  "built_at_commit": "2243c1a7ffd75942891bf9443cec73b3a8bac870"
 }

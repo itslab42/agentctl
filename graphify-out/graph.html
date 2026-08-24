@@ -1,2404 +1,345 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>graphify - graphify-out/graph.html</title>
-    <script
-      src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"
-      integrity="sha384-Ux6phic9PEHJ38YtrijhkzyJ8yQlH8i/+buBR8s3mAZOJrP1gwyvAcIYl3GWtpX1"
-      crossorigin="anonymous"
-    ></script>
-    <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        background: #0f0f1a;
-        color: #e0e0e0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        display: flex;
-        height: 100vh;
-        overflow: hidden;
-      }
-      #graph {
-        flex: 1;
-      }
-      #sidebar {
-        width: 280px;
-        background: #1a1a2e;
-        border-left: 1px solid #2a2a4e;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-      #search-wrap {
-        padding: 12px;
-        border-bottom: 1px solid #2a2a4e;
-      }
-      #search {
-        width: 100%;
-        background: #0f0f1a;
-        border: 1px solid #3a3a5e;
-        color: #e0e0e0;
-        padding: 7px 10px;
-        border-radius: 6px;
-        font-size: 13px;
-        outline: none;
-      }
-      #search:focus {
-        border-color: #4e79a7;
-      }
-      #search-results {
-        max-height: 140px;
-        overflow-y: auto;
-        padding: 4px 12px;
-        border-bottom: 1px solid #2a2a4e;
-        display: none;
-      }
-      .search-item {
-        padding: 4px 6px;
-        cursor: pointer;
-        border-radius: 4px;
-        font-size: 12px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .search-item:hover {
-        background: #2a2a4e;
-      }
-      #info-panel {
-        padding: 14px;
-        border-bottom: 1px solid #2a2a4e;
-        min-height: 140px;
-      }
-      #info-panel h3 {
-        font-size: 13px;
-        color: #aaa;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      #info-content {
-        font-size: 13px;
-        color: #ccc;
-        line-height: 1.6;
-      }
-      #info-content .field {
-        margin-bottom: 5px;
-      }
-      #info-content .field b {
-        color: #e0e0e0;
-      }
-      #info-content .empty {
-        color: #555;
-        font-style: italic;
-      }
-      .neighbor-link {
-        display: block;
-        padding: 2px 6px;
-        margin: 2px 0;
-        border-radius: 3px;
-        cursor: pointer;
-        font-size: 12px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        border-left: 3px solid #333;
-      }
-      .neighbor-link:hover {
-        background: #2a2a4e;
-      }
-      #neighbors-list {
-        max-height: 160px;
-        overflow-y: auto;
-        margin-top: 4px;
-      }
-      #legend-wrap {
-        flex: 1;
-        overflow-y: auto;
-        padding: 12px;
-      }
-      #legend-wrap h3 {
-        font-size: 13px;
-        color: #aaa;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 0;
-        cursor: pointer;
-        border-radius: 4px;
-        font-size: 12px;
-      }
-      .legend-item:hover {
-        background: #2a2a4e;
-        padding-left: 4px;
-      }
-      .legend-item.dimmed {
-        opacity: 0.35;
-      }
-      .legend-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        flex-shrink: 0;
-      }
-      .legend-label {
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .legend-count {
-        color: #666;
-        font-size: 11px;
-      }
-      #stats {
-        padding: 10px 14px;
-        border-top: 1px solid #2a2a4e;
-        font-size: 11px;
-        color: #555;
-      }
-      #legend-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-        padding: 4px 0;
-      }
-      #legend-controls label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        cursor: pointer;
-        font-size: 12px;
-        color: #aaa;
-        user-select: none;
-      }
-      #legend-controls label:hover {
-        color: #e0e0e0;
-      }
-      .legend-cb,
-      #select-all-cb {
-        appearance: none;
-        -webkit-appearance: none;
-        width: 14px;
-        height: 14px;
-        border: 1.5px solid #3a3a5e;
-        border-radius: 3px;
-        background: #0f0f1a;
-        cursor: pointer;
-        position: relative;
-        flex-shrink: 0;
-      }
-      .legend-cb:checked,
-      #select-all-cb:checked {
-        background: #4e79a7;
-        border-color: #4e79a7;
-      }
-      .legend-cb:checked::after,
-      #select-all-cb:checked::after {
-        content: "";
-        position: absolute;
-        left: 3.5px;
-        top: 1px;
-        width: 4px;
-        height: 7px;
-        border: solid #fff;
-        border-width: 0 2px 2px 0;
-        transform: rotate(45deg);
-      }
-      #select-all-cb:indeterminate {
-        background: #4e79a7;
-        border-color: #4e79a7;
-      }
-      #select-all-cb:indeterminate::after {
-        content: "";
-        position: absolute;
-        left: 2px;
-        top: 5px;
-        width: 8px;
-        height: 2px;
-        background: #fff;
-        border: none;
-        transform: none;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="graph"></div>
-    <div id="sidebar">
-      <div id="search-wrap">
-        <input id="search" type="text" placeholder="Search nodes..." autocomplete="off" />
-        <div id="search-results"></div>
-      </div>
-      <div id="info-panel">
-        <h3>Node Info</h3>
-        <div id="info-content"><span class="empty">Click a node to inspect it</span></div>
-      </div>
-      <div id="legend-wrap">
-        <h3>Communities</h3>
-        <div id="legend-controls">
-          <label
-            ><input
-              type="checkbox"
-              id="select-all-cb"
-              checked
-              onchange="toggleAllCommunities(!this.checked)"
-            />Select All</label
-          >
-        </div>
-        <div id="legend"></div>
-      </div>
-      <div id="stats">50 nodes &middot; 97 edges &middot; 8 communities</div>
+<head>
+<meta charset="UTF-8">
+<title>graphify - graphify-out/graph.html</title>
+<script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"
+        integrity="sha384-Ux6phic9PEHJ38YtrijhkzyJ8yQlH8i/+buBR8s3mAZOJrP1gwyvAcIYl3GWtpX1"
+        crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #graph { flex: 1; }
+  #sidebar { width: 280px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; }
+  #search-wrap { padding: 12px; border-bottom: 1px solid #2a2a4e; }
+  #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+  #search:focus { border-color: #4E79A7; }
+  #search-results { max-height: 140px; overflow-y: auto; padding: 4px 12px; border-bottom: 1px solid #2a2a4e; display: none; }
+  .search-item { padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-item:hover { background: #2a2a4e; }
+  #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; min-height: 140px; }
+  #info-panel h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  #info-content { font-size: 13px; color: #ccc; line-height: 1.6; }
+  #info-content .field { margin-bottom: 5px; }
+  #info-content .field b { color: #e0e0e0; }
+  #info-content .empty { color: #555; font-style: italic; }
+  .neighbor-link { display: block; padding: 2px 6px; margin: 2px 0; border-radius: 3px; cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #333; }
+  .neighbor-link:hover { background: #2a2a4e; }
+  #neighbors-list { max-height: 160px; overflow-y: auto; margin-top: 4px; }
+  #legend-wrap { flex: 1; overflow-y: auto; padding: 12px; }
+  #legend-wrap h3 { font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }
+  .legend-item:hover { background: #2a2a4e; padding-left: 4px; }
+  .legend-item.dimmed { opacity: 0.35; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend-count { color: #666; font-size: 11px; }
+  #stats { padding: 10px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #555; }
+  #legend-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 4px 0; }
+  #legend-controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #aaa; user-select: none; }
+  #legend-controls label:hover { color: #e0e0e0; }
+  .legend-cb, #select-all-cb { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border: 1.5px solid #3a3a5e; border-radius: 3px; background: #0f0f1a; cursor: pointer; position: relative; flex-shrink: 0; }
+  .legend-cb:checked, #select-all-cb:checked { background: #4E79A7; border-color: #4E79A7; }
+  .legend-cb:checked::after, #select-all-cb:checked::after { content: ''; position: absolute; left: 3.5px; top: 1px; width: 4px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  #select-all-cb:indeterminate { background: #4E79A7; border-color: #4E79A7; }
+  #select-all-cb:indeterminate::after { content: ''; position: absolute; left: 2px; top: 5px; width: 8px; height: 2px; background: #fff; border: none; transform: none; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<div id="sidebar">
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Search nodes..." autocomplete="off">
+    <div id="search-results"></div>
+  </div>
+  <div id="info-panel">
+    <h3>Node Info</h3>
+    <div id="info-content"><span class="empty">Click a node to inspect it</span></div>
+  </div>
+  <div id="legend-wrap">
+    <h3>Communities</h3>
+    <div id="legend-controls">
+      <label><input type="checkbox" id="select-all-cb" checked onchange="toggleAllCommunities(!this.checked)">Select All</label>
     </div>
-    <script>
-      const RAW_NODES = [
-        {
-          id: "src_permissions_permissions",
-          label: "Permissions",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 19.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "Permissions",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 6
-        },
-        {
-          id: "src_permissions_permissionvalue",
-          label: "PermissionValue",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "PermissionValue",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 1
-        },
-        {
-          id: "src_cli_generatedfile",
-          label: "GeneratedFile",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "GeneratedFile",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 1
-        },
-        {
-          id: "src_config_agentctlconfig",
-          label: "AgentctlConfig",
-          color: {
-            background: "#76B7B2",
-            border: "#76B7B2",
-            highlight: { background: "#ffffff", border: "#76B7B2" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "AgentctlConfig",
-          community: 3,
-          community_name: "Claude Adapter & Config",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 1
-        },
-        {
-          id: "src_config_claudesettings",
-          label: "ClaudeSettings",
-          color: {
-            background: "#76B7B2",
-            border: "#76B7B2",
-            highlight: { background: "#ffffff", border: "#76B7B2" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "ClaudeSettings",
-          community: 3,
-          community_name: "Claude Adapter & Config",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_adapters_kiro_kirorule",
-          label: "KiroRule",
-          color: {
-            background: "#EDC948",
-            border: "#EDC948",
-            highlight: { background: "#ffffff", border: "#EDC948" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "KiroRule",
-          community: 5,
-          community_name: "Kiro Adapter",
-          source_file: "src/adapters/kiro.ts",
-          file_type: "code",
-          degree: 1
-        },
-        {
-          id: "src_diff_op",
-          label: "Op",
-          color: {
-            background: "#B07AA1",
-            border: "#B07AA1",
-            highlight: { background: "#ffffff", border: "#B07AA1" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "Op",
-          community: 6,
-          community_name: "Diff Engine",
-          source_file: "src/diff.ts",
-          file_type: "code",
-          degree: 1
-        },
-        {
-          id: "src_adapters_codex_rendercodexhook",
-          label: "renderCodexHook()",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 16.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "renderCodexHook()",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/adapters/codex.ts",
-          file_type: "code",
-          degree: 4
-        },
-        {
-          id: "src_permissions_asobject",
-          label: "asObject()",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "asObject()",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_permissions_globtoregexsource",
-          label: "globToRegexSource()",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "globToRegexSource()",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 3
-        },
-        {
-          id: "src_permissions_parsepermissions",
-          label: "parsePermissions()",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 19.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "parsePermissions()",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 6
-        },
-        {
-          id: "src_permissions_patterns",
-          label: "patterns()",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "patterns()",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_permissions_permission",
-          label: "permission()",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "permission()",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_adapters_claude_renderclaude",
-          label: "renderClaude()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "renderClaude()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/adapters/claude.ts",
-          file_type: "code",
-          degree: 3
-        },
-        {
-          id: "src_adapters_codex_rendercodexconfig",
-          label: "renderCodexConfig()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "renderCodexConfig()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/adapters/codex.ts",
-          file_type: "code",
-          degree: 3
-        },
-        {
-          id: "src_adapters_opencode_renderopencode",
-          label: "renderOpenCode()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "renderOpenCode()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/adapters/opencode.ts",
-          file_type: "code",
-          degree: 3
-        },
-        {
-          id: "src_cli_current",
-          label: "current()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "current()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_cli_display",
-          label: "display()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "display()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_cli_expected",
-          label: "expected()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 20.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "expected()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 7
-        },
-        {
-          id: "src_cli_main",
-          label: "main()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 20.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "main()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 7
-        },
-        {
-          id: "src_cli_projectname",
-          label: "projectName()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "projectName()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_cli_runinit",
-          label: "runInit()",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "runInit()",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 3
-        },
-        {
-          id: "src_config_bool",
-          label: "bool()",
-          color: {
-            background: "#76B7B2",
-            border: "#76B7B2",
-            highlight: { background: "#ffffff", border: "#76B7B2" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "bool()",
-          community: 3,
-          community_name: "Claude Adapter & Config",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 1
-        },
-        {
-          id: "src_config_number",
-          label: "number()",
-          color: {
-            background: "#59A14F",
-            border: "#59A14F",
-            highlight: { background: "#ffffff", border: "#59A14F" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "number()",
-          community: 4,
-          community_name: "Config Schema Parsing",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_config_object",
-          label: "object()",
-          color: {
-            background: "#59A14F",
-            border: "#59A14F",
-            highlight: { background: "#ffffff", border: "#59A14F" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "object()",
-          community: 4,
-          community_name: "Config Schema Parsing",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 3
-        },
-        {
-          id: "src_config_parseconfig",
-          label: "parseConfig()",
-          color: {
-            background: "#59A14F",
-            border: "#59A14F",
-            highlight: { background: "#ffffff", border: "#59A14F" }
-          },
-          size: 19.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "parseConfig()",
-          community: 4,
-          community_name: "Config Schema Parsing",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 6
-        },
-        {
-          id: "src_config_runtime",
-          label: "runtime()",
-          color: {
-            background: "#59A14F",
-            border: "#59A14F",
-            highlight: { background: "#ffffff", border: "#59A14F" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "runtime()",
-          community: 4,
-          community_name: "Config Schema Parsing",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 3
-        },
-        {
-          id: "src_config_string",
-          label: "string()",
-          color: {
-            background: "#59A14F",
-            border: "#59A14F",
-            highlight: { background: "#ffffff", border: "#59A14F" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "string()",
-          community: 4,
-          community_name: "Config Schema Parsing",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_adapters_kiro_mostpermissive",
-          label: "mostPermissive()",
-          color: {
-            background: "#EDC948",
-            border: "#EDC948",
-            highlight: { background: "#ffffff", border: "#EDC948" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "mostPermissive()",
-          community: 5,
-          community_name: "Kiro Adapter",
-          source_file: "src/adapters/kiro.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_adapters_kiro_renderkiro",
-          label: "renderKiro()",
-          color: {
-            background: "#EDC948",
-            border: "#EDC948",
-            highlight: { background: "#ffffff", border: "#EDC948" }
-          },
-          size: 16.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "renderKiro()",
-          community: 5,
-          community_name: "Kiro Adapter",
-          source_file: "src/adapters/kiro.ts",
-          file_type: "code",
-          degree: 4
-        },
-        {
-          id: "src_diff_lcsops",
-          label: "lcsOps()",
-          color: {
-            background: "#B07AA1",
-            border: "#B07AA1",
-            highlight: { background: "#ffffff", border: "#B07AA1" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "lcsOps()",
-          community: 6,
-          community_name: "Diff Engine",
-          source_file: "src/diff.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_diff_unifieddiff",
-          label: "unifiedDiff()",
-          color: {
-            background: "#B07AA1",
-            border: "#B07AA1",
-            highlight: { background: "#ffffff", border: "#B07AA1" }
-          },
-          size: 16.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "unifiedDiff()",
-          community: 6,
-          community_name: "Diff Engine",
-          source_file: "src/diff.ts",
-          file_type: "code",
-          degree: 4
-        },
-        {
-          id: "src_config_loadsource",
-          label: "loadSource()",
-          color: {
-            background: "#FF9DA7",
-            border: "#FF9DA7",
-            highlight: { background: "#ffffff", border: "#FF9DA7" }
-          },
-          size: 19.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "loadSource()",
-          community: 7,
-          community_name: "YAML File Loading",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 6
-        },
-        {
-          id: "src_config_yamlfile",
-          label: "yamlFile()",
-          color: {
-            background: "#FF9DA7",
-            border: "#FF9DA7",
-            highlight: { background: "#ffffff", border: "#FF9DA7" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "yamlFile()",
-          community: 7,
-          community_name: "YAML File Loading",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_adapters_codex",
-          label: "codex.ts",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 19.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "codex.ts",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/adapters/codex.ts",
-          file_type: "code",
-          degree: 6
-        },
-        {
-          id: "src_adapters_opencode",
-          label: "opencode.ts",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 16.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "opencode.ts",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/adapters/opencode.ts",
-          file_type: "code",
-          degree: 4
-        },
-        {
-          id: "src_permissions",
-          label: "permissions.ts",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 29.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "permissions.ts",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 13
-        },
-        {
-          id: "src_permissions_values",
-          label: "values",
-          color: {
-            background: "#4E79A7",
-            border: "#4E79A7",
-            highlight: { background: "#ffffff", border: "#4E79A7" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "values",
-          community: 0,
-          community_name: "Permissions & Adapters",
-          source_file: "src/permissions.ts",
-          file_type: "code",
-          degree: 1
-        },
-        {
-          id: "src_cli",
-          label: "cli.ts",
-          color: {
-            background: "#F28E2B",
-            border: "#F28E2B",
-            highlight: { background: "#ffffff", border: "#F28E2B" }
-          },
-          size: 40.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "cli.ts",
-          community: 1,
-          community_name: "CLI & Rendering",
-          source_file: "src/cli.ts",
-          file_type: "code",
-          degree: 20
-        },
-        {
-          id: "src_adapters_claude",
-          label: "claude.ts",
-          color: {
-            background: "#76B7B2",
-            border: "#76B7B2",
-            highlight: { background: "#ffffff", border: "#76B7B2" }
-          },
-          size: 20.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "claude.ts",
-          community: 3,
-          community_name: "Claude Adapter & Config",
-          source_file: "src/adapters/claude.ts",
-          file_type: "code",
-          degree: 7
-        },
-        {
-          id: "src_config",
-          label: "config.ts",
-          color: {
-            background: "#76B7B2",
-            border: "#76B7B2",
-            highlight: { background: "#ffffff", border: "#76B7B2" }
-          },
-          size: 34.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "config.ts",
-          community: 3,
-          community_name: "Claude Adapter & Config",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 16
-        },
-        {
-          id: "src_config_claudedefaults",
-          label: "claudeDefaults",
-          color: {
-            background: "#76B7B2",
-            border: "#76B7B2",
-            highlight: { background: "#ffffff", border: "#76B7B2" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "claudeDefaults",
-          community: 3,
-          community_name: "Claude Adapter & Config",
-          source_file: "src/config.ts",
-          file_type: "code",
-          degree: 2
-        },
-        {
-          id: "src_adapters_kiro",
-          label: "kiro.ts",
-          color: {
-            background: "#EDC948",
-            border: "#EDC948",
-            highlight: { background: "#ffffff", border: "#EDC948" }
-          },
-          size: 19.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "kiro.ts",
-          community: 5,
-          community_name: "Kiro Adapter",
-          source_file: "src/adapters/kiro.ts",
-          file_type: "code",
-          degree: 6
-        },
-        {
-          id: "src_diff",
-          label: "diff.ts",
-          color: {
-            background: "#B07AA1",
-            border: "#B07AA1",
-            highlight: { background: "#ffffff", border: "#B07AA1" }
-          },
-          size: 16.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "diff.ts",
-          community: 6,
-          community_name: "Diff Engine",
-          source_file: "src/diff.ts",
-          file_type: "code",
-          degree: 4
-        },
-        {
-          id: "filesystem_permissions",
-          label: "Filesystem Permissions",
-          color: {
-            background: "#E15759",
-            border: "#E15759",
-            highlight: { background: "#ffffff", border: "#E15759" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "Filesystem Permissions",
-          community: 2,
-          community_name: "Config Stubs",
-          source_file: "src/stubs/permissions.yaml",
-          file_type: "concept",
-          degree: 2
-        },
-        {
-          id: "permission_policy",
-          label: "Permission Policy",
-          color: {
-            background: "#E15759",
-            border: "#E15759",
-            highlight: { background: "#ffffff", border: "#E15759" }
-          },
-          size: 14.5,
-          font: { size: 12, color: "#ffffff" },
-          title: "Permission Policy",
-          community: 2,
-          community_name: "Config Stubs",
-          source_file: "src/stubs/permissions.yaml",
-          file_type: "concept",
-          degree: 3
-        },
-        {
-          id: "runtime_config",
-          label: "Runtime Configuration",
-          color: {
-            background: "#E15759",
-            border: "#E15759",
-            highlight: { background: "#ffffff", border: "#E15759" }
-          },
-          size: 11.5,
-          font: { size: 0, color: "#ffffff" },
-          title: "Runtime Configuration",
-          community: 2,
-          community_name: "Config Stubs",
-          source_file: "src/stubs/config.yaml",
-          file_type: "concept",
-          degree: 1
-        },
-        {
-          id: "shell_permissions",
-          label: "Shell Permissions",
-          color: {
-            background: "#E15759",
-            border: "#E15759",
-            highlight: { background: "#ffffff", border: "#E15759" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "Shell Permissions",
-          community: 2,
-          community_name: "Config Stubs",
-          source_file: "src/stubs/permissions.yaml",
-          file_type: "concept",
-          degree: 2
-        },
-        {
-          id: "src_stubs_config_yaml_stub",
-          label: "Config YAML Stub",
-          color: {
-            background: "#E15759",
-            border: "#E15759",
-            highlight: { background: "#ffffff", border: "#E15759" }
-          },
-          size: 13.0,
-          font: { size: 0, color: "#ffffff" },
-          title: "Config YAML Stub",
-          community: 2,
-          community_name: "Config Stubs",
-          source_file: "src/stubs/config.yaml",
-          file_type: "concept",
-          degree: 2
-        },
-        {
-          id: "src_stubs_permissions_yaml_stub",
-          label: "Permissions YAML Stub",
-          color: {
-            background: "#E15759",
-            border: "#E15759",
-            highlight: { background: "#ffffff", border: "#E15759" }
-          },
-          size: 16.0,
-          font: { size: 12, color: "#ffffff" },
-          title: "Permissions YAML Stub",
-          community: 2,
-          community_name: "Config Stubs",
-          source_file: "src/stubs/permissions.yaml",
-          file_type: "concept",
-          degree: 4
-        }
-      ];
-      const RAW_EDGES = [
-        {
-          from: "src_permissions_permissions",
-          to: "src_adapters_claude",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_permissions",
-          to: "src_adapters_codex",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_permissions",
-          to: "src_adapters_kiro",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_permissions",
-          to: "src_adapters_opencode",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_permissions",
-          to: "src_config",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_permissions",
-          to: "src_permissions",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_permissionvalue",
-          to: "src_permissions",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_generatedfile",
-          to: "src_cli",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_agentctlconfig",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_claudesettings",
-          to: "src_adapters_claude",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_claudesettings",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_kiro_kirorule",
-          to: "src_adapters_kiro",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_diff_op",
-          to: "src_diff",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex_rendercodexhook",
-          to: "src_cli_expected",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex_rendercodexhook",
-          to: "src_cli",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex_rendercodexhook",
-          to: "src_adapters_codex",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex_rendercodexhook",
-          to: "src_permissions_globtoregexsource",
-          label: "indirect_call",
-          title: "indirect_call [INFERRED]",
-          dashes: true,
-          width: 1,
-          color: { opacity: 0.35 },
-          confidence: "INFERRED"
-        },
-        {
-          from: "src_permissions_asobject",
-          to: "src_permissions_parsepermissions",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_asobject",
-          to: "src_permissions",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_globtoregexsource",
-          to: "src_adapters_codex",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_globtoregexsource",
-          to: "src_permissions",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_parsepermissions",
-          to: "src_config_loadsource",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_parsepermissions",
-          to: "src_permissions_permission",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_parsepermissions",
-          to: "src_permissions_patterns",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_parsepermissions",
-          to: "src_config",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_parsepermissions",
-          to: "src_permissions",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_patterns",
-          to: "src_permissions",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions_permission",
-          to: "src_permissions",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_claude_renderclaude",
-          to: "src_cli_expected",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_claude_renderclaude",
-          to: "src_cli",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_claude_renderclaude",
-          to: "src_adapters_claude",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex_rendercodexconfig",
-          to: "src_cli_expected",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex_rendercodexconfig",
-          to: "src_cli",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex_rendercodexconfig",
-          to: "src_adapters_codex",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_opencode_renderopencode",
-          to: "src_cli_expected",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_opencode_renderopencode",
-          to: "src_cli",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_opencode_renderopencode",
-          to: "src_adapters_opencode",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_current",
-          to: "src_cli_main",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_current",
-          to: "src_cli",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_display",
-          to: "src_cli_main",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_display",
-          to: "src_cli",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_expected",
-          to: "src_adapters_kiro_renderkiro",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_expected",
-          to: "src_cli_main",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_expected",
-          to: "src_cli",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_main",
-          to: "src_cli_runinit",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_main",
-          to: "src_config_loadsource",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_main",
-          to: "src_diff_unifieddiff",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_main",
-          to: "src_cli",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_projectname",
-          to: "src_cli_runinit",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_projectname",
-          to: "src_cli",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli_runinit",
-          to: "src_cli",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_bool",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_number",
-          to: "src_config_parseconfig",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_number",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_object",
-          to: "src_config_parseconfig",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_object",
-          to: "src_config_runtime",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_object",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_parseconfig",
-          to: "src_config_loadsource",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_parseconfig",
-          to: "src_config_string",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_parseconfig",
-          to: "src_config_runtime",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_parseconfig",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_runtime",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_string",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_kiro_mostpermissive",
-          to: "src_adapters_kiro_renderkiro",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_kiro_mostpermissive",
-          to: "src_adapters_kiro",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_kiro_renderkiro",
-          to: "src_cli",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_kiro_renderkiro",
-          to: "src_adapters_kiro",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_diff_lcsops",
-          to: "src_diff_unifieddiff",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_diff_lcsops",
-          to: "src_diff",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_diff_unifieddiff",
-          to: "src_cli",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_diff_unifieddiff",
-          to: "src_diff",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_loadsource",
-          to: "src_config_yamlfile",
-          label: "calls",
-          title: "calls [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_loadsource",
-          to: "src_cli",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_loadsource",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config_yamlfile",
-          to: "src_config",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex",
-          to: "src_permissions",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_codex",
-          to: "src_cli",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_opencode",
-          to: "src_permissions",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_opencode",
-          to: "src_cli",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions",
-          to: "src_adapters_claude",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions",
-          to: "src_adapters_kiro",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions",
-          to: "src_config",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_permissions",
-          to: "src_permissions_values",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli",
-          to: "src_adapters_kiro",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli",
-          to: "src_config",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli",
-          to: "src_diff",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_cli",
-          to: "src_adapters_claude",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_claude",
-          to: "src_config_claudedefaults",
-          label: "imports",
-          title: "imports [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_adapters_claude",
-          to: "src_config",
-          label: "imports_from",
-          title: "imports_from [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_config",
-          to: "src_config_claudedefaults",
-          label: "contains",
-          title: "contains [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "filesystem_permissions",
-          to: "src_stubs_permissions_yaml_stub",
-          label: "",
-          title: " [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "filesystem_permissions",
-          to: "permission_policy",
-          label: "",
-          title: " [INFERRED]",
-          dashes: true,
-          width: 1,
-          color: { opacity: 0.35 },
-          confidence: "INFERRED"
-        },
-        {
-          from: "permission_policy",
-          to: "src_stubs_permissions_yaml_stub",
-          label: "",
-          title: " [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "permission_policy",
-          to: "shell_permissions",
-          label: "",
-          title: " [INFERRED]",
-          dashes: true,
-          width: 1,
-          color: { opacity: 0.35 },
-          confidence: "INFERRED"
-        },
-        {
-          from: "runtime_config",
-          to: "src_stubs_config_yaml_stub",
-          label: "",
-          title: " [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "shell_permissions",
-          to: "src_stubs_permissions_yaml_stub",
-          label: "",
-          title: " [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        },
-        {
-          from: "src_stubs_config_yaml_stub",
-          to: "src_stubs_permissions_yaml_stub",
-          label: "",
-          title: " [EXTRACTED]",
-          dashes: false,
-          width: 2,
-          color: { opacity: 0.7 },
-          confidence: "EXTRACTED"
-        }
-      ];
-      const LEGEND = [
-        { cid: 0, color: "#4E79A7", label: "Permissions &amp; Adapters", count: 12 },
-        { cid: 1, color: "#F28E2B", label: "CLI &amp; Rendering", count: 11 },
-        { cid: 2, color: "#E15759", label: "Config Stubs", count: 6 },
-        { cid: 3, color: "#76B7B2", label: "Claude Adapter &amp; Config", count: 6 },
-        { cid: 4, color: "#59A14F", label: "Config Schema Parsing", count: 5 },
-        { cid: 5, color: "#EDC948", label: "Kiro Adapter", count: 4 },
-        { cid: 6, color: "#B07AA1", label: "Diff Engine", count: 4 },
-        { cid: 7, color: "#FF9DA7", label: "YAML File Loading", count: 2 }
-      ];
+    <div id="legend"></div>
+  </div>
+  <div id="stats">50 nodes &middot; 97 edges &middot; 8 communities</div>
+</div>
+<script>
+const RAW_NODES = [{"id": "src_permissions_permissions", "label": "Permissions", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Permissions", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 6}, {"id": "src_permissions_permissionvalue", "label": "PermissionValue", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "PermissionValue", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 1}, {"id": "src_cli_generatedfile", "label": "GeneratedFile", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "GeneratedFile", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 1}, {"id": "src_config_agentctlconfig", "label": "AgentctlConfig", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "AgentctlConfig", "community": 3, "community_name": "Claude Adapter & Config", "source_file": "src/config.ts", "file_type": "code", "degree": 1}, {"id": "src_config_claudesettings", "label": "ClaudeSettings", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "ClaudeSettings", "community": 3, "community_name": "Claude Adapter & Config", "source_file": "src/config.ts", "file_type": "code", "degree": 2}, {"id": "src_adapters_kiro_kirorule", "label": "KiroRule", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "KiroRule", "community": 5, "community_name": "Kiro Adapter", "source_file": "src/adapters/kiro.ts", "file_type": "code", "degree": 1}, {"id": "src_diff_op", "label": "Op", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "Op", "community": 6, "community_name": "Diff Engine", "source_file": "src/diff.ts", "file_type": "code", "degree": 1}, {"id": "src_adapters_codex_rendercodexhook", "label": "renderCodexHook()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "renderCodexHook()", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/adapters/codex.ts", "file_type": "code", "degree": 4}, {"id": "src_permissions_asobject", "label": "asObject()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "asObject()", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 2}, {"id": "src_permissions_globtoregexsource", "label": "globToRegexSource()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "globToRegexSource()", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 3}, {"id": "src_permissions_parsepermissions", "label": "parsePermissions()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "parsePermissions()", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 6}, {"id": "src_permissions_patterns", "label": "patterns()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "patterns()", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 2}, {"id": "src_permissions_permission", "label": "permission()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "permission()", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 2}, {"id": "src_adapters_claude_renderclaude", "label": "renderClaude()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "renderClaude()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/adapters/claude.ts", "file_type": "code", "degree": 3}, {"id": "src_adapters_codex_rendercodexconfig", "label": "renderCodexConfig()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "renderCodexConfig()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/adapters/codex.ts", "file_type": "code", "degree": 3}, {"id": "src_adapters_opencode_renderopencode", "label": "renderOpenCode()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "renderOpenCode()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/adapters/opencode.ts", "file_type": "code", "degree": 3}, {"id": "src_cli_current", "label": "current()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "current()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 2}, {"id": "src_cli_display", "label": "display()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "display()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 2}, {"id": "src_cli_expected", "label": "expected()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 20.5, "font": {"size": 12, "color": "#ffffff"}, "title": "expected()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 7}, {"id": "src_cli_main", "label": "main()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 20.5, "font": {"size": 12, "color": "#ffffff"}, "title": "main()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 7}, {"id": "src_cli_projectname", "label": "projectName()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "projectName()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 2}, {"id": "src_cli_runinit", "label": "runInit()", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "runInit()", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 3}, {"id": "src_config_bool", "label": "bool()", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "bool()", "community": 3, "community_name": "Claude Adapter & Config", "source_file": "src/config.ts", "file_type": "code", "degree": 1}, {"id": "src_config_number", "label": "number()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "number()", "community": 4, "community_name": "Config Schema Parsing", "source_file": "src/config.ts", "file_type": "code", "degree": 2}, {"id": "src_config_object", "label": "object()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "object()", "community": 4, "community_name": "Config Schema Parsing", "source_file": "src/config.ts", "file_type": "code", "degree": 3}, {"id": "src_config_parseconfig", "label": "parseConfig()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "parseConfig()", "community": 4, "community_name": "Config Schema Parsing", "source_file": "src/config.ts", "file_type": "code", "degree": 6}, {"id": "src_config_runtime", "label": "runtime()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "runtime()", "community": 4, "community_name": "Config Schema Parsing", "source_file": "src/config.ts", "file_type": "code", "degree": 3}, {"id": "src_config_string", "label": "string()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "string()", "community": 4, "community_name": "Config Schema Parsing", "source_file": "src/config.ts", "file_type": "code", "degree": 2}, {"id": "src_adapters_kiro_mostpermissive", "label": "mostPermissive()", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "mostPermissive()", "community": 5, "community_name": "Kiro Adapter", "source_file": "src/adapters/kiro.ts", "file_type": "code", "degree": 2}, {"id": "src_adapters_kiro_renderkiro", "label": "renderKiro()", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "renderKiro()", "community": 5, "community_name": "Kiro Adapter", "source_file": "src/adapters/kiro.ts", "file_type": "code", "degree": 4}, {"id": "src_diff_lcsops", "label": "lcsOps()", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "lcsOps()", "community": 6, "community_name": "Diff Engine", "source_file": "src/diff.ts", "file_type": "code", "degree": 2}, {"id": "src_diff_unifieddiff", "label": "unifiedDiff()", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "unifiedDiff()", "community": 6, "community_name": "Diff Engine", "source_file": "src/diff.ts", "file_type": "code", "degree": 4}, {"id": "src_config_loadsource", "label": "loadSource()", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "loadSource()", "community": 7, "community_name": "YAML File Loading", "source_file": "src/config.ts", "file_type": "code", "degree": 6}, {"id": "src_config_yamlfile", "label": "yamlFile()", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "yamlFile()", "community": 7, "community_name": "YAML File Loading", "source_file": "src/config.ts", "file_type": "code", "degree": 2}, {"id": "src_adapters_codex", "label": "codex.ts", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "codex.ts", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/adapters/codex.ts", "file_type": "code", "degree": 6}, {"id": "src_adapters_opencode", "label": "opencode.ts", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "opencode.ts", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/adapters/opencode.ts", "file_type": "code", "degree": 4}, {"id": "src_permissions", "label": "permissions.ts", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 29.5, "font": {"size": 12, "color": "#ffffff"}, "title": "permissions.ts", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 13}, {"id": "src_permissions_values", "label": "values", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "values", "community": 0, "community_name": "Permissions & Adapters", "source_file": "src/permissions.ts", "file_type": "code", "degree": 1}, {"id": "src_cli", "label": "cli.ts", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 40.0, "font": {"size": 12, "color": "#ffffff"}, "title": "cli.ts", "community": 1, "community_name": "CLI & Rendering", "source_file": "src/cli.ts", "file_type": "code", "degree": 20}, {"id": "src_adapters_claude", "label": "claude.ts", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 20.5, "font": {"size": 12, "color": "#ffffff"}, "title": "claude.ts", "community": 3, "community_name": "Claude Adapter & Config", "source_file": "src/adapters/claude.ts", "file_type": "code", "degree": 7}, {"id": "src_config", "label": "config.ts", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 34.0, "font": {"size": 12, "color": "#ffffff"}, "title": "config.ts", "community": 3, "community_name": "Claude Adapter & Config", "source_file": "src/config.ts", "file_type": "code", "degree": 16}, {"id": "src_config_claudedefaults", "label": "claudeDefaults", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "claudeDefaults", "community": 3, "community_name": "Claude Adapter & Config", "source_file": "src/config.ts", "file_type": "code", "degree": 2}, {"id": "src_adapters_kiro", "label": "kiro.ts", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "kiro.ts", "community": 5, "community_name": "Kiro Adapter", "source_file": "src/adapters/kiro.ts", "file_type": "code", "degree": 6}, {"id": "src_diff", "label": "diff.ts", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "diff.ts", "community": 6, "community_name": "Diff Engine", "source_file": "src/diff.ts", "file_type": "code", "degree": 4}, {"id": "filesystem_permissions", "label": "Filesystem Permissions", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Filesystem Permissions", "community": 2, "community_name": "Config Stubs", "source_file": "src/stubs/permissions.yaml", "file_type": "concept", "degree": 2}, {"id": "permission_policy", "label": "Permission Policy", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 14.5, "font": {"size": 12, "color": "#ffffff"}, "title": "Permission Policy", "community": 2, "community_name": "Config Stubs", "source_file": "src/stubs/permissions.yaml", "file_type": "concept", "degree": 3}, {"id": "runtime_config", "label": "Runtime Configuration", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 11.5, "font": {"size": 0, "color": "#ffffff"}, "title": "Runtime Configuration", "community": 2, "community_name": "Config Stubs", "source_file": "src/stubs/config.yaml", "file_type": "concept", "degree": 1}, {"id": "shell_permissions", "label": "Shell Permissions", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Shell Permissions", "community": 2, "community_name": "Config Stubs", "source_file": "src/stubs/permissions.yaml", "file_type": "concept", "degree": 2}, {"id": "src_stubs_config_yaml_stub", "label": "Config YAML Stub", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Config YAML Stub", "community": 2, "community_name": "Config Stubs", "source_file": "src/stubs/config.yaml", "file_type": "concept", "degree": 2}, {"id": "src_stubs_permissions_yaml_stub", "label": "Permissions YAML Stub", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Permissions YAML Stub", "community": 2, "community_name": "Config Stubs", "source_file": "src/stubs/permissions.yaml", "file_type": "concept", "degree": 4}];
+const RAW_EDGES = [{"from": "src_permissions_permissions", "to": "src_adapters_claude", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_permissions", "to": "src_adapters_codex", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_permissions", "to": "src_adapters_kiro", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_permissions", "to": "src_adapters_opencode", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_permissions", "to": "src_config", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_permissions", "to": "src_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_permissionvalue", "to": "src_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_generatedfile", "to": "src_cli", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_agentctlconfig", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_claudesettings", "to": "src_adapters_claude", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_claudesettings", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_kiro_kirorule", "to": "src_adapters_kiro", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_diff_op", "to": "src_diff", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex_rendercodexhook", "to": "src_cli_expected", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex_rendercodexhook", "to": "src_cli", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex_rendercodexhook", "to": "src_adapters_codex", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex_rendercodexhook", "to": "src_permissions_globtoregexsource", "label": "indirect_call", "title": "indirect_call [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "src_permissions_asobject", "to": "src_permissions_parsepermissions", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_asobject", "to": "src_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_globtoregexsource", "to": "src_adapters_codex", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_globtoregexsource", "to": "src_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_parsepermissions", "to": "src_config_loadsource", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_parsepermissions", "to": "src_permissions_permission", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_parsepermissions", "to": "src_permissions_patterns", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_parsepermissions", "to": "src_config", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_parsepermissions", "to": "src_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_patterns", "to": "src_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions_permission", "to": "src_permissions", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_claude_renderclaude", "to": "src_cli_expected", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_claude_renderclaude", "to": "src_cli", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_claude_renderclaude", "to": "src_adapters_claude", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex_rendercodexconfig", "to": "src_cli_expected", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex_rendercodexconfig", "to": "src_cli", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex_rendercodexconfig", "to": "src_adapters_codex", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_opencode_renderopencode", "to": "src_cli_expected", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_opencode_renderopencode", "to": "src_cli", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_opencode_renderopencode", "to": "src_adapters_opencode", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_current", "to": "src_cli_main", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_current", "to": "src_cli", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_display", "to": "src_cli_main", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_display", "to": "src_cli", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_expected", "to": "src_adapters_kiro_renderkiro", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_expected", "to": "src_cli_main", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_expected", "to": "src_cli", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_main", "to": "src_cli_runinit", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_main", "to": "src_config_loadsource", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_main", "to": "src_diff_unifieddiff", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_main", "to": "src_cli", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_projectname", "to": "src_cli_runinit", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_projectname", "to": "src_cli", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli_runinit", "to": "src_cli", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_bool", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_number", "to": "src_config_parseconfig", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_number", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_object", "to": "src_config_parseconfig", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_object", "to": "src_config_runtime", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_object", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_parseconfig", "to": "src_config_loadsource", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_parseconfig", "to": "src_config_string", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_parseconfig", "to": "src_config_runtime", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_parseconfig", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_runtime", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_string", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_kiro_mostpermissive", "to": "src_adapters_kiro_renderkiro", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_kiro_mostpermissive", "to": "src_adapters_kiro", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_kiro_renderkiro", "to": "src_cli", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_kiro_renderkiro", "to": "src_adapters_kiro", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_diff_lcsops", "to": "src_diff_unifieddiff", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_diff_lcsops", "to": "src_diff", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_diff_unifieddiff", "to": "src_cli", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_diff_unifieddiff", "to": "src_diff", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_loadsource", "to": "src_config_yamlfile", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_loadsource", "to": "src_cli", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_loadsource", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_yamlfile", "to": "src_config", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex", "to": "src_permissions", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_codex", "to": "src_cli", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_opencode", "to": "src_permissions", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_opencode", "to": "src_cli", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions", "to": "src_adapters_claude", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions", "to": "src_adapters_kiro", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions", "to": "src_config", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_permissions", "to": "src_permissions_values", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli", "to": "src_adapters_kiro", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli", "to": "src_config", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli", "to": "src_diff", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_cli", "to": "src_adapters_claude", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_claude", "to": "src_config_claudedefaults", "label": "imports", "title": "imports [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_adapters_claude", "to": "src_config", "label": "imports_from", "title": "imports_from [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config", "to": "src_config_claudedefaults", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "filesystem_permissions", "to": "src_stubs_permissions_yaml_stub", "label": "", "title": " [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "filesystem_permissions", "to": "permission_policy", "label": "", "title": " [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "permission_policy", "to": "src_stubs_permissions_yaml_stub", "label": "", "title": " [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "permission_policy", "to": "shell_permissions", "label": "", "title": " [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "runtime_config", "to": "src_stubs_config_yaml_stub", "label": "", "title": " [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "shell_permissions", "to": "src_stubs_permissions_yaml_stub", "label": "", "title": " [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_stubs_config_yaml_stub", "to": "src_stubs_permissions_yaml_stub", "label": "", "title": " [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}];
+const LEGEND = [{"cid": 0, "color": "#4E79A7", "label": "Permissions &amp; Adapters", "count": 12}, {"cid": 1, "color": "#F28E2B", "label": "CLI &amp; Rendering", "count": 11}, {"cid": 2, "color": "#E15759", "label": "Config Stubs", "count": 6}, {"cid": 3, "color": "#76B7B2", "label": "Claude Adapter &amp; Config", "count": 6}, {"cid": 4, "color": "#59A14F", "label": "Config Schema Parsing", "count": 5}, {"cid": 5, "color": "#EDC948", "label": "Kiro Adapter", "count": 4}, {"cid": 6, "color": "#B07AA1", "label": "Diff Engine", "count": 4}, {"cid": 7, "color": "#FF9DA7", "label": "YAML File Loading", "count": 2}];
 
-      // HTML-escape helper — prevents XSS when injecting graph data into innerHTML
-      function esc(s) {
-        return String(s)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
+// HTML-escape helper — prevents XSS when injecting graph data into innerHTML
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
-      // Build vis datasets
-      const nodesDS = new vis.DataSet(
-        RAW_NODES.map((n) => ({
-          id: n.id,
-          label: n.label,
-          color: n.color,
-          size: n.size,
-          font: n.font,
-          title: n.title,
-          _community: n.community,
-          _community_name: n.community_name,
-          _source_file: n.source_file,
-          _file_type: n.file_type,
-          _degree: n.degree
-        }))
-      );
+// Build vis datasets
+const nodesDS = new vis.DataSet(RAW_NODES.map(n => ({
+  id: n.id, label: n.label, color: n.color, size: n.size,
+  font: n.font, title: n.title,
+  _community: n.community, _community_name: n.community_name,
+  _source_file: n.source_file, _file_type: n.file_type, _degree: n.degree,
+})));
 
-      const edgesDS = new vis.DataSet(
-        RAW_EDGES.map((e, i) => ({
-          id: i,
-          from: e.from,
-          to: e.to,
-          label: "",
-          title: e.title,
-          dashes: e.dashes,
-          width: e.width,
-          color: e.color,
-          arrows: { to: { enabled: true, scaleFactor: 0.5 } }
-        }))
-      );
+const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({
+  id: i, from: e.from, to: e.to,
+  label: '',
+  title: e.title,
+  dashes: e.dashes,
+  width: e.width,
+  color: e.color,
+  arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+})));
 
-      const container = document.getElementById("graph");
-      const network = new vis.Network(
-        container,
-        { nodes: nodesDS, edges: edgesDS },
-        {
-          physics: {
-            enabled: true,
-            solver: "forceAtlas2Based",
-            forceAtlas2Based: {
-              gravitationalConstant: -60,
-              centralGravity: 0.005,
-              springLength: 120,
-              springConstant: 0.08,
-              damping: 0.4,
-              avoidOverlap: 0.8
-            },
-            stabilization: { iterations: 200, fit: true }
-          },
-          interaction: {
-            hover: true,
-            tooltipDelay: 100,
-            hideEdgesOnDrag: true,
-            navigationButtons: false,
-            keyboard: false
-          },
-          nodes: { shape: "dot", borderWidth: 1.5 },
-          edges: { smooth: { type: "continuous", roundness: 0.2 }, selectionWidth: 3 }
-        }
-      );
+const container = document.getElementById('graph');
+const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, {
+  physics: {
+    enabled: true,
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {
+      gravitationalConstant: -60,
+      centralGravity: 0.005,
+      springLength: 120,
+      springConstant: 0.08,
+      damping: 0.4,
+      avoidOverlap: 0.8,
+    },
+    stabilization: { iterations: 200, fit: true },
+  },
+  interaction: {
+    hover: true,
+    tooltipDelay: 100,
+    hideEdgesOnDrag: true,
+    navigationButtons: false,
+    keyboard: false,
+  },
+  nodes: { shape: 'dot', borderWidth: 1.5 },
+  edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 3 },
+});
 
-      network.once("stabilizationIterationsDone", () => {
-        network.setOptions({ physics: { enabled: false } });
-      });
+network.once('stabilizationIterationsDone', () => {
+  network.setOptions({ physics: { enabled: false } });
+});
 
-      function showInfo(nodeId) {
-        const n = nodesDS.get(nodeId);
-        if (!n) return;
-        const neighborIds = network.getConnectedNodes(nodeId);
-        const neighborItems = neighborIds
-          .map((nid) => {
-            const nb = nodesDS.get(nid);
-            const color = nb ? nb.color.background : "#555";
-            return `<span class="neighbor-link" style="border-left-color:${esc(color)}" data-nid="${esc(nid)}">${esc(nb ? nb.label : nid)}</span>`;
-          })
-          .join("");
-        document.getElementById("info-content").innerHTML = `
+function showInfo(nodeId) {
+  const n = nodesDS.get(nodeId);
+  if (!n) return;
+  const neighborIds = network.getConnectedNodes(nodeId);
+  const neighborItems = neighborIds.map(nid => {
+    const nb = nodesDS.get(nid);
+    const color = nb ? nb.color.background : '#555';
+    return `<span class="neighbor-link" style="border-left-color:${esc(color)}" data-nid="${esc(nid)}">${esc(nb ? nb.label : nid)}</span>`;
+  }).join('');
+  document.getElementById('info-content').innerHTML = `
     <div class="field"><b>${esc(n.label)}</b></div>
-    <div class="field">Type: ${esc(n._file_type || "unknown")}</div>
+    <div class="field">Type: ${esc(n._file_type || 'unknown')}</div>
     <div class="field">Community: ${esc(n._community_name)}</div>
-    <div class="field">Source: ${esc(n._source_file || "-")}</div>
+    <div class="field">Source: ${esc(n._source_file || '-')}</div>
     <div class="field">Degree: ${n._degree}</div>
-    ${neighborIds.length ? `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${neighborIds.length})</div><div id="neighbors-list">${neighborItems}</div>` : ""}
+    ${neighborIds.length ? `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${neighborIds.length})</div><div id="neighbors-list">${neighborItems}</div>` : ''}
   `;
-      }
+}
 
-      function focusNode(nodeId) {
-        network.focus(nodeId, { scale: 1.4, animation: true });
-        network.selectNodes([nodeId]);
-        showInfo(nodeId);
-      }
+function focusNode(nodeId) {
+  network.focus(nodeId, { scale: 1.4, animation: true });
+  network.selectNodes([nodeId]);
+  showInfo(nodeId);
+}
 
-      // Neighbor links use a data attribute + one delegated listener rather than an
-      // inline onclick. A node id/label sourced from a document or a scraped URL
-      // (graphify add) can contain a double-quote; dropping the stringified id
-      // unescaped into a quoted onclick both broke every link and allowed a hostile
-      // source to inject an event handler into the local report (stored XSS, #1838).
-      // esc() on data-nid keeps the value inside the attribute; the listener reads it
-      // back verbatim. Bound to document so it survives the innerHTML rebuild that
-      // recreates #neighbors-list on each showInfo().
-      document.addEventListener("click", (e) => {
-        const el = e.target.closest(".neighbor-link");
-        if (el && el.dataset.nid !== undefined) focusNode(el.dataset.nid);
-      });
+// Neighbor links use a data attribute + one delegated listener rather than an
+// inline onclick. A node id/label sourced from a document or a scraped URL
+// (graphify add) can contain a double-quote; dropping the stringified id
+// unescaped into a quoted onclick both broke every link and allowed a hostile
+// source to inject an event handler into the local report (stored XSS, #1838).
+// esc() on data-nid keeps the value inside the attribute; the listener reads it
+// back verbatim. Bound to document so it survives the innerHTML rebuild that
+// recreates #neighbors-list on each showInfo().
+document.addEventListener('click', e => {
+  const el = e.target.closest('.neighbor-link');
+  if (el && el.dataset.nid !== undefined) focusNode(el.dataset.nid);
+});
 
-      // Track hovered node — hover detection is more reliable than click params
-      let hoveredNodeId = null;
-      network.on("hoverNode", (params) => {
-        hoveredNodeId = params.node;
-        container.style.cursor = "pointer";
-      });
-      network.on("blurNode", () => {
-        hoveredNodeId = null;
-        container.style.cursor = "default";
-      });
-      container.addEventListener("click", () => {
-        if (hoveredNodeId !== null) {
-          showInfo(hoveredNodeId);
-          network.selectNodes([hoveredNodeId]);
-        }
-      });
-      network.on("click", (params) => {
-        if (params.nodes.length > 0) {
-          showInfo(params.nodes[0]);
-        } else if (hoveredNodeId === null) {
-          document.getElementById("info-content").innerHTML =
-            '<span class="empty">Click a node to inspect it</span>';
-        }
-      });
+// Track hovered node — hover detection is more reliable than click params
+let hoveredNodeId = null;
+network.on('hoverNode', params => {
+  hoveredNodeId = params.node;
+  container.style.cursor = 'pointer';
+});
+network.on('blurNode', () => {
+  hoveredNodeId = null;
+  container.style.cursor = 'default';
+});
+container.addEventListener('click', () => {
+  if (hoveredNodeId !== null) {
+    showInfo(hoveredNodeId);
+    network.selectNodes([hoveredNodeId]);
+  }
+});
+network.on('click', params => {
+  if (params.nodes.length > 0) {
+    showInfo(params.nodes[0]);
+  } else if (hoveredNodeId === null) {
+    document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+  }
+});
 
-      const searchInput = document.getElementById("search");
-      const searchResults = document.getElementById("search-results");
-      searchInput.addEventListener("input", () => {
-        const q = searchInput.value.toLowerCase().trim();
-        searchResults.innerHTML = "";
-        if (!q) {
-          searchResults.style.display = "none";
-          return;
-        }
-        const matches = RAW_NODES.filter((n) => n.label.toLowerCase().includes(q)).slice(0, 20);
-        if (!matches.length) {
-          searchResults.style.display = "none";
-          return;
-        }
-        searchResults.style.display = "block";
-        matches.forEach((n) => {
-          const el = document.createElement("div");
-          el.className = "search-item";
-          el.textContent = n.label;
-          el.style.borderLeft = `3px solid ${n.color.background}`;
-          el.style.paddingLeft = "8px";
-          el.onclick = () => {
-            network.focus(n.id, { scale: 1.5, animation: true });
-            network.selectNodes([n.id]);
-            showInfo(n.id);
-            searchResults.style.display = "none";
-            searchInput.value = "";
-          };
-          searchResults.appendChild(el);
-        });
-      });
-      document.addEventListener("click", (e) => {
-        if (!searchResults.contains(e.target) && e.target !== searchInput)
-          searchResults.style.display = "none";
-      });
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  searchResults.innerHTML = '';
+  if (!q) { searchResults.style.display = 'none'; return; }
+  const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q)).slice(0, 20);
+  if (!matches.length) { searchResults.style.display = 'none'; return; }
+  searchResults.style.display = 'block';
+  matches.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'search-item';
+    el.textContent = n.label;
+    el.style.borderLeft = `3px solid ${n.color.background}`;
+    el.style.paddingLeft = '8px';
+    el.onclick = () => {
+      network.focus(n.id, { scale: 1.5, animation: true });
+      network.selectNodes([n.id]);
+      showInfo(n.id);
+      searchResults.style.display = 'none';
+      searchInput.value = '';
+    };
+    searchResults.appendChild(el);
+  });
+});
+document.addEventListener('click', e => {
+  if (!searchResults.contains(e.target) && e.target !== searchInput)
+    searchResults.style.display = 'none';
+});
 
-      const hiddenCommunities = new Set();
+const hiddenCommunities = new Set();
 
-      const selectAllCb = document.getElementById("select-all-cb");
+const selectAllCb = document.getElementById('select-all-cb');
 
-      function updateSelectAllState() {
-        const total = LEGEND.length;
-        const hidden = hiddenCommunities.size;
-        selectAllCb.checked = hidden === 0;
-        selectAllCb.indeterminate = hidden > 0 && hidden < total;
-      }
+function updateSelectAllState() {
+  const total = LEGEND.length;
+  const hidden = hiddenCommunities.size;
+  selectAllCb.checked = hidden === 0;
+  selectAllCb.indeterminate = hidden > 0 && hidden < total;
+}
 
-      function toggleAllCommunities(hide) {
-        document.querySelectorAll(".legend-item").forEach((item) => {
-          hide ? item.classList.add("dimmed") : item.classList.remove("dimmed");
-        });
-        document.querySelectorAll(".legend-cb").forEach((cb) => {
-          cb.checked = !hide;
-        });
-        LEGEND.forEach((c) => {
-          if (hide) hiddenCommunities.add(c.cid);
-          else hiddenCommunities.delete(c.cid);
-        });
-        const updates = RAW_NODES.map((n) => ({ id: n.id, hidden: hide }));
-        nodesDS.update(updates);
-        updateSelectAllState();
-      }
+function toggleAllCommunities(hide) {
+  document.querySelectorAll('.legend-item').forEach(item => {
+    hide ? item.classList.add('dimmed') : item.classList.remove('dimmed');
+  });
+  document.querySelectorAll('.legend-cb').forEach(cb => {
+    cb.checked = !hide;
+  });
+  LEGEND.forEach(c => {
+    if (hide) hiddenCommunities.add(c.cid); else hiddenCommunities.delete(c.cid);
+  });
+  const updates = RAW_NODES.map(n => ({ id: n.id, hidden: hide }));
+  nodesDS.update(updates);
+  updateSelectAllState();
+}
 
-      const legendEl = document.getElementById("legend");
-      LEGEND.forEach((c) => {
-        const item = document.createElement("div");
-        item.className = "legend-item";
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.className = "legend-cb";
-        cb.checked = true;
-        cb.addEventListener("change", (e) => {
-          e.stopPropagation();
-          if (cb.checked) {
-            hiddenCommunities.delete(c.cid);
-            item.classList.remove("dimmed");
-          } else {
-            hiddenCommunities.add(c.cid);
-            item.classList.add("dimmed");
-          }
-          const updates = RAW_NODES.filter((n) => n.community === c.cid).map((n) => ({
-            id: n.id,
-            hidden: !cb.checked
-          }));
-          nodesDS.update(updates);
-          updateSelectAllState();
-        });
-        item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
+const legendEl = document.getElementById('legend');
+LEGEND.forEach(c => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'legend-cb';
+  cb.checked = true;
+  cb.addEventListener('change', (e) => {
+    e.stopPropagation();
+    if (cb.checked) {
+      hiddenCommunities.delete(c.cid);
+      item.classList.remove('dimmed');
+    } else {
+      hiddenCommunities.add(c.cid);
+      item.classList.add('dimmed');
+    }
+    const updates = RAW_NODES
+      .filter(n => n.community === c.cid)
+      .map(n => ({ id: n.id, hidden: !cb.checked }));
+    nodesDS.update(updates);
+    updateSelectAllState();
+  });
+  item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
     <span class="legend-label">${c.label}</span>
     <span class="legend-count">${c.count}</span>`;
-        item.prepend(cb);
-        item.onclick = (e) => {
-          if (e.target === cb) return;
-          cb.checked = !cb.checked;
-          cb.dispatchEvent(new Event("change"));
-        };
-        legendEl.appendChild(item);
-      });
-    </script>
-    <script>
-      // Render hyperedges as shaded regions
-      const hyperedges = [];
-      // afterDrawing passes ctx already transformed to network coordinate space.
-      // Draw node positions raw — no manual pan/zoom/DPR math needed.
+  item.prepend(cb);
+  item.onclick = (e) => {
+    if (e.target === cb) return;
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change'));
+  };
+  legendEl.appendChild(item);
+});
+</script>
+<script>
+// Render hyperedges as shaded regions
+const hyperedges = [];
+// afterDrawing passes ctx already transformed to network coordinate space.
+// Draw node positions raw — no manual pan/zoom/DPR math needed.
 
-      // Andrew's monotone chain. Returns the hull in counter-clockwise order, which
-      // is what the perimeter must be traced in. Collinear and duplicate points
-      // collapse to the extremes, so degenerate member sets render as a segment
-      // rather than a zero-area crossed path.
-      function convexHull(pts) {
-        const p = pts.slice().sort((a, b) => a.x - b.x || a.y - b.y);
-        if (p.length < 3) return p;
-        const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-        const build = (seq) => {
-          const out = [];
-          for (const q of seq) {
-            while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], q) <= 0)
-              out.pop();
+// Andrew's monotone chain. Returns the hull in counter-clockwise order, which
+// is what the perimeter must be traced in. Collinear and duplicate points
+// collapse to the extremes, so degenerate member sets render as a segment
+// rather than a zero-area crossed path.
+function convexHull(pts) {
+    const p = pts.slice().sort((a, b) => (a.x - b.x) || (a.y - b.y));
+    if (p.length < 3) return p;
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    const build = seq => {
+        const out = [];
+        for (const q of seq) {
+            while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], q) <= 0) out.pop();
             out.push(q);
-          }
-          out.pop();
-          return out;
-        };
-        const hull = build(p).concat(build(p.slice().reverse()));
-        return hull.length >= 3 ? hull : p;
-      }
-      network.on("afterDrawing", function (ctx) {
-        hyperedges.forEach((h) => {
-          const positions = h.nodes
-            .map((nid) => network.getPositions([nid])[nid])
-            .filter((p) => p !== undefined);
-          if (positions.length < 2) return;
-          ctx.save();
-          ctx.globalAlpha = 0.12;
-          ctx.fillStyle = "#6366f1";
-          ctx.strokeStyle = "#6366f1";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          // Centroid and expanded hull in network coordinates.
-          // The perimeter must follow hull order, not h.nodes order: tracing the
-          // raw member order self-intersects whenever the layout does not happen
-          // to place members in angular order, filling as crossed wedges.
-          const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
-          const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
-          const hull = convexHull(positions);
-          const expanded = hull.map((p) => ({
+        }
+        out.pop();
+        return out;
+    };
+    const hull = build(p).concat(build(p.slice().reverse()));
+    return hull.length >= 3 ? hull : p;
+}
+network.on('afterDrawing', function(ctx) {
+    hyperedges.forEach(h => {
+        const positions = h.nodes
+            .map(nid => network.getPositions([nid])[nid])
+            .filter(p => p !== undefined);
+        if (positions.length < 2) return;
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // Centroid and expanded hull in network coordinates.
+        // The perimeter must follow hull order, not h.nodes order: tracing the
+        // raw member order self-intersects whenever the layout does not happen
+        // to place members in angular order, filling as crossed wedges.
+        const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
+        const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
+        const hull = convexHull(positions);
+        const expanded = hull.map(p => ({
             x: cx + (p.x - cx) * 1.15,
             y: cy + (p.y - cy) * 1.15
-          }));
-          ctx.moveTo(expanded[0].x, expanded[0].y);
-          expanded.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
-          ctx.closePath();
-          ctx.fill();
-          ctx.globalAlpha = 0.4;
-          ctx.stroke();
-          // Label
-          ctx.globalAlpha = 0.8;
-          ctx.fillStyle = "#4f46e5";
-          ctx.font = "bold 11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(h.label, cx, cy - 5);
-          ctx.restore();
-        });
-      });
-    </script>
-  </body>
+        }));
+        ctx.moveTo(expanded[0].x, expanded[0].y);
+        expanded.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.4;
+        ctx.stroke();
+        // Label
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#4f46e5';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(h.label, cx, cy - 5);
+        ctx.restore();
+    });
+});
+</script>
+</body>
 </html>

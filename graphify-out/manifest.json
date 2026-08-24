@@ -12,10 +12,10 @@
     "semantic_hash": "5ff9e90f149a2c37278d218d959144c4"
   },
   "src/adapters/kiro.ts": {
-    "mtime": 1787582271.6825862,
-    "seen": 1787591553.526809,
-    "ast_hash": "30a7af82011dbe972426c37bad78a017",
-    "semantic_hash": "30a7af82011dbe972426c37bad78a017"
+    "mtime": 1787594268.5295742,
+    "seen": 1787594487.099196,
+    "ast_hash": "5b3afe6b6c910ff95b763e42e22c411c",
+    "semantic_hash": ""
   },
   "src/adapters/opencode.ts": {
     "mtime": 1787509751.0415652,
