@@ -2,9 +2,9 @@
 
 ## Bugs (fix first)
 
-- [ ] Codex adapter: `shell.default === "allow"` falls through to wrong branch — maps to `never` instead of `auto`
-- [ ] Codex adapter: `shell.allow` patterns are never written to the hook — Claude and Codex have different effective permissions from identical source
-- [ ] Claude adapter: `alwaysThinkingEnabled`, `cleanupPeriodDays`, telemetry are hardcoded — should be configurable with sensible defaults
+- [x] Codex adapter: `shell.default === "allow"` falls through to wrong branch — maps to `never` instead of `auto`
+- [x] Codex adapter: `shell.allow` patterns are never written to the hook — Claude and Codex have different effective permissions from identical source
+- [x] Claude adapter: `alwaysThinkingEnabled`, `cleanupPeriodDays`, telemetry are hardcoded — should be configurable with sensible defaults
 
 ## Commands
 
