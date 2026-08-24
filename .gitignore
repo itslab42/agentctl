@@ -5,3 +5,7 @@ dist
 dist-test
 .artifacts
 .kiro/settings
+
+# graphify
+graphify-out/cost.json
+graphify-out/cache/
