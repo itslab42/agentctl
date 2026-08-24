@@ -1,0 +1,62 @@
+{
+  "src/adapters/claude.ts": {
+    "mtime": 1787583663.1459773,
+    "seen": 1787591553.526806,
+    "ast_hash": "84991984c3994727418f912cdb781d80",
+    "semantic_hash": "84991984c3994727418f912cdb781d80"
+  },
+  "src/adapters/codex.ts": {
+    "mtime": 1787582895.904075,
+    "seen": 1787591553.526808,
+    "ast_hash": "5ff9e90f149a2c37278d218d959144c4",
+    "semantic_hash": "5ff9e90f149a2c37278d218d959144c4"
+  },
+  "src/adapters/kiro.ts": {
+    "mtime": 1787582271.6825862,
+    "seen": 1787591553.526809,
+    "ast_hash": "30a7af82011dbe972426c37bad78a017",
+    "semantic_hash": "30a7af82011dbe972426c37bad78a017"
+  },
+  "src/adapters/opencode.ts": {
+    "mtime": 1787509751.0415652,
+    "seen": 1787591553.5268102,
+    "ast_hash": "d540ef3c37d0064c4ca247426149ede9",
+    "semantic_hash": "d540ef3c37d0064c4ca247426149ede9"
+  },
+  "src/cli.ts": {
+    "mtime": 1787584072.9813619,
+    "seen": 1787591553.5268102,
+    "ast_hash": "793f670b241d595731de93c50b682d74",
+    "semantic_hash": "793f670b241d595731de93c50b682d74"
+  },
+  "src/config.ts": {
+    "mtime": 1787582940.4309878,
+    "seen": 1787591553.526811,
+    "ast_hash": "2b7fafc4c79037c077d762bbf6f6ab69",
+    "semantic_hash": "2b7fafc4c79037c077d762bbf6f6ab69"
+  },
+  "src/diff.ts": {
+    "mtime": 1787513474.3797376,
+    "seen": 1787591553.526811,
+    "ast_hash": "0fcec2663f543a5fe1e7a4dea3d31658",
+    "semantic_hash": "0fcec2663f543a5fe1e7a4dea3d31658"
+  },
+  "src/permissions.ts": {
+    "mtime": 1787510795.6457584,
+    "seen": 1787591553.526811,
+    "ast_hash": "b5219795f64a092b6a8ad0aefa2f8783",
+    "semantic_hash": "b5219795f64a092b6a8ad0aefa2f8783"
+  },
+  "src/stubs/config.yaml": {
+    "mtime": 1787582036.776038,
+    "seen": 1787591553.5268118,
+    "ast_hash": "07ce15bc470c23f76222dec9eaa47971",
+    "semantic_hash": "07ce15bc470c23f76222dec9eaa47971"
+  },
+  "src/stubs/permissions.yaml": {
+    "mtime": 1787513107.4808145,
+    "seen": 1787591553.5268118,
+    "ast_hash": "93988ddb89e39fa5bf203d998b745934",
+    "semantic_hash": "93988ddb89e39fa5bf203d998b745934"
+  }
+}
