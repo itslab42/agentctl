@@ -7,10 +7,12 @@ import { tmpdir } from "node:os";
 
 // When compiled, __dirname = <project>/dist-test/tests/
 // We need to reach <project>/src/cli.ts
-const CLI = resolve(__dirname, "..", "..", "src", "cli.ts");
+const PROJECT_ROOT = resolve(__dirname, "..", "..");
+const CLI = resolve(PROJECT_ROOT, "src", "cli.ts");
+const TSX = resolve(PROJECT_ROOT, "node_modules", ".bin", "tsx");
 
 function run(cwd: string): { stdout: string; stderr: string; exitCode: number } {
-  const result = spawnSync("npx", ["tsx", CLI, "status"], {
+  const result = spawnSync(TSX, [CLI, "status"], {
     cwd,
     encoding: "utf8",
     env: { ...process.env, NODE_NO_WARNINGS: "1" }
@@ -19,7 +21,7 @@ function run(cwd: string): { stdout: string; stderr: string; exitCode: number } 
 }
 
 function runSync(cwd: string): void {
-  const result = spawnSync("npx", ["tsx", CLI, "sync"], {
+  const result = spawnSync(TSX, [CLI, "sync"], {
     cwd,
     encoding: "utf8",
     env: { ...process.env, NODE_NO_WARNINGS: "1" }
