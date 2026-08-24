@@ -356,7 +356,7 @@
       "file_type": "code",
       "norm_label": "mostpermissive()",
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L62"
+      "source_location": "L63"
     },
     {
       "id": "src_adapters_kiro_renderkiro",
@@ -635,7 +635,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L31",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -1325,7 +1325,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/adapters/kiro.ts",
-      "source_location": "L62",
+      "source_location": "L63",
       "weight": 1.0
     },
     {
@@ -1738,5 +1738,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "2243c1a7ffd75942891bf9443cec73b3a8bac870"
+  "built_at_commit": "e238609d34411ee234e8a6cba2683a1eba362247"
 }
