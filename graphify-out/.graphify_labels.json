@@ -1,10 +1,12 @@
 {
-  "0": "Permissions & Adapters",
-  "1": "CLI & Rendering",
-  "2": "Config Stubs",
-  "3": "Claude Adapter & Config",
-  "4": "Config Schema Parsing",
-  "5": "Kiro Adapter",
-  "6": "Diff Engine",
-  "7": "YAML File Loading"
+  "0": "permissions.ts",
+  "1": "cli.ts",
+  "2": "Permissions YAML Stub",
+  "3": "config.ts",
+  "4": "parseConfig",
+  "5": "Permissions",
+  "6": "diff.ts",
+  "7": "loadSource",
+  "8": "expected",
+  "9": "codex.ts"
 }
