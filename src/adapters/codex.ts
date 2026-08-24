@@ -8,12 +8,13 @@ export function renderCodexConfig(permissions: Permissions): string {
       ? "on-request"
       : permissions.shell.default === "deny"
         ? "never"
-        : "never";
+        : "auto";
   return `approval_policy = "${approval}"\nsandbox_mode = "${writable ? "workspace-write" : "read-only"}"\n\n[hooks.PreToolUse]\nBash = ".codex/hooks/permission-policy.py"\n`;
 }
 
 export function renderCodexHook(permissions: Permissions): string {
-  const patterns = permissions.shell.deny.map(globToRegexSource);
+  const denyPatterns = permissions.shell.deny.map(globToRegexSource);
+  const allowPatterns = permissions.shell.allow.map(globToRegexSource);
   return `#!/usr/bin/env python3
 # GENERATED FILE — DO NOT EDIT.
 # Source: .ai/permissions.yaml
@@ -22,7 +23,9 @@ import json
 import re
 import sys
 
-DENY_PATTERNS = ${JSON.stringify(patterns, null, 2)}
+DENY_PATTERNS = ${JSON.stringify(denyPatterns, null, 2)}
+
+ALLOW_PATTERNS = ${JSON.stringify(allowPatterns, null, 2)}
 
 def main() -> None:
     try:
@@ -34,6 +37,9 @@ def main() -> None:
     command = invocation.get("tool_input", {}).get("command", "")
     if any(re.match(pattern, command) for pattern in DENY_PATTERNS):
         print(json.dumps({"permissionDecision": "deny", "permissionDecisionReason": "Blocked by agentctl shell deny policy"}))
+        return
+    if any(re.match(pattern, command) for pattern in ALLOW_PATTERNS):
+        print(json.dumps({"permissionDecision": "allow", "permissionDecisionReason": "Approved by agentctl shell allow policy"}))
 
 if __name__ == "__main__":
     main()

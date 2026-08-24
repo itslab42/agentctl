@@ -3,9 +3,22 @@ import { resolve } from "node:path";
 import { parse } from "yaml";
 import { Permissions, parsePermissions } from "./permissions";
 
+export interface ClaudeSettings {
+  alwaysThinkingEnabled: boolean;
+  cleanupPeriodDays: number;
+  disableTelemetry: boolean;
+}
+
+export const claudeDefaults: ClaudeSettings = {
+  alwaysThinkingEnabled: true,
+  cleanupPeriodDays: 90,
+  disableTelemetry: true
+};
+
 export interface AgentctlConfig {
   project: { name: string };
   runtimes: Record<"claude" | "codex" | "kiro" | "opencode", { enabled: boolean }>;
+  claude: ClaudeSettings;
   sync: { permissions: boolean };
   files: { permissions: string };
 }
@@ -23,6 +36,11 @@ function bool(value: unknown, label: string): boolean {
   if (typeof value !== "boolean") throw new Error(`${label} must be a boolean`);
   return value;
 }
+function number(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value))
+    throw new Error(`${label} must be a number`);
+  return value;
+}
 function runtime(raw: Record<string, unknown>, name: string): { enabled: boolean } {
   if (!(name in raw)) return { enabled: false };
   const value = object(raw[name], `runtimes.${name}`);
@@ -35,6 +53,26 @@ export function parseConfig(raw: unknown): AgentctlConfig {
   const runtimes = root.runtimes ? object(root.runtimes, "runtimes") : {};
   const sync = object(root.sync, "sync");
   const files = object(root.files, "files");
+
+  let claude: ClaudeSettings = { ...claudeDefaults };
+  if (root.claude) {
+    const c = object(root.claude, "claude");
+    claude = {
+      alwaysThinkingEnabled:
+        c.alwaysThinkingEnabled !== undefined
+          ? bool(c.alwaysThinkingEnabled, "claude.alwaysThinkingEnabled")
+          : claudeDefaults.alwaysThinkingEnabled,
+      cleanupPeriodDays:
+        c.cleanupPeriodDays !== undefined
+          ? number(c.cleanupPeriodDays, "claude.cleanupPeriodDays")
+          : claudeDefaults.cleanupPeriodDays,
+      disableTelemetry:
+        c.disableTelemetry !== undefined
+          ? bool(c.disableTelemetry, "claude.disableTelemetry")
+          : claudeDefaults.disableTelemetry
+    };
+  }
+
   return {
     project: { name: string(project.name, "project.name") },
     runtimes: {
@@ -43,6 +81,7 @@ export function parseConfig(raw: unknown): AgentctlConfig {
       kiro: runtime(runtimes, "kiro"),
       opencode: runtime(runtimes, "opencode")
     },
+    claude,
     sync: { permissions: bool(sync.permissions, "sync.permissions") },
     files: { permissions: string(files.permissions, "files.permissions") }
   };

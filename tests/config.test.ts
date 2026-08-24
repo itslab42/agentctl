@@ -68,3 +68,47 @@ test("parseConfig rejects invalid runtime value", () => {
   };
   assert.throws(() => parseConfig(bad), /runtimes\.kiro\.enabled must be a boolean/);
 });
+
+test("parseConfig uses claude defaults when claude section is omitted", () => {
+  const config = parseConfig(full);
+  assert.equal(config.claude.alwaysThinkingEnabled, true);
+  assert.equal(config.claude.cleanupPeriodDays, 90);
+  assert.equal(config.claude.disableTelemetry, true);
+});
+
+test("parseConfig parses custom claude settings", () => {
+  const custom = {
+    ...full,
+    claude: {
+      alwaysThinkingEnabled: false,
+      cleanupPeriodDays: 7,
+      disableTelemetry: false
+    }
+  };
+  const config = parseConfig(custom);
+  assert.equal(config.claude.alwaysThinkingEnabled, false);
+  assert.equal(config.claude.cleanupPeriodDays, 7);
+  assert.equal(config.claude.disableTelemetry, false);
+});
+
+test("parseConfig uses defaults for omitted claude sub-fields", () => {
+  const partial = {
+    ...full,
+    claude: { cleanupPeriodDays: 14 }
+  };
+  const config = parseConfig(partial);
+  assert.equal(config.claude.cleanupPeriodDays, 14);
+  assert.equal(config.claude.alwaysThinkingEnabled, true); // default
+  assert.equal(config.claude.disableTelemetry, true); // default
+});
+
+test("parseConfig rejects invalid claude field types", () => {
+  assert.throws(
+    () => parseConfig({ ...full, claude: { cleanupPeriodDays: "thirty" } }),
+    /claude\.cleanupPeriodDays must be a number/
+  );
+  assert.throws(
+    () => parseConfig({ ...full, claude: { alwaysThinkingEnabled: "yes" } }),
+    /claude\.alwaysThinkingEnabled must be a boolean/
+  );
+});

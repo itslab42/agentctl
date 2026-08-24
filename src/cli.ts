@@ -23,7 +23,7 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
     files.push({
       runtime: "Claude",
       path: resolve(root, ".claude/settings.json"),
-      content: renderClaude(source.permissions)
+      content: renderClaude(source.permissions, source.config.claude)
     });
   if (source.config.runtimes.opencode.enabled)
     files.push({

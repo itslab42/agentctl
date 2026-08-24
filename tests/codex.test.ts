@@ -16,12 +16,30 @@ const p: Permissions = {
     deny: ["git push*", "git reset --hard*", "git clean*", "git rm*", "gh pr create*", "gh api*"]
   }
 };
+
 test("Codex config uses native sandbox and approval settings", () => {
   assert.match(renderCodexConfig(p), /approval_policy = "on-request"/);
   assert.match(renderCodexConfig(p), /sandbox_mode = "workspace-write"/);
   const readonly = { ...p, filesystem: { edit: "ask" as const, write: "deny" as const } };
   assert.match(renderCodexConfig(readonly), /sandbox_mode = "read-only"/);
 });
+
+test("Codex config maps shell.default=allow to auto (not never)", () => {
+  const allowAll: Permissions = {
+    ...p,
+    shell: { default: "allow", allow: [], deny: [] }
+  };
+  assert.match(renderCodexConfig(allowAll), /approval_policy = "auto"/);
+});
+
+test("Codex config maps shell.default=deny to never", () => {
+  const denyAll: Permissions = {
+    ...p,
+    shell: { default: "deny", allow: [], deny: [] }
+  };
+  assert.match(renderCodexConfig(denyAll), /approval_policy = "never"/);
+});
+
 test("glob conversion and generated hook block only dangerous Bash commands", () => {
   assert.equal(globToRegexSource("git push*"), "^git push.*$");
   const dir = mkdtempSync(join(tmpdir(), "agentctl-test-"));
@@ -48,7 +66,45 @@ test("glob conversion and generated hook block only dangerous Bash commands", ()
       input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
       encoding: "utf8"
     });
-    assert.equal(run.stdout, "", command);
+    const result = JSON.parse(run.stdout);
+    assert.equal(result.permissionDecision, "allow", `expected allow for: ${command}`);
   }
   assert.match(renderCodexHook(p), /GENERATED FILE — DO NOT EDIT/);
+});
+
+test("Codex hook includes ALLOW_PATTERNS from shell.allow", () => {
+  const hook = renderCodexHook(p);
+  assert.match(hook, /ALLOW_PATTERNS/);
+  // Verify the allow patterns are present as regex sources
+  assert.match(hook, /\^git\.\*\$/);
+  assert.match(hook, /\^pnpm\.\*\$/);
+});
+
+test("Codex hook emits allow decision for matching allow patterns", () => {
+  const dir = mkdtempSync(join(tmpdir(), "agentctl-allow-"));
+  const hook = join(dir, "policy.py");
+  writeFileSync(hook, renderCodexHook(p));
+  const allowedByPattern = ["git status", "git diff", "pnpm install", "pnpm test"];
+  for (const command of allowedByPattern) {
+    const run = spawnSync("python3", [hook], {
+      input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
+      encoding: "utf8"
+    });
+    const result = JSON.parse(run.stdout);
+    assert.equal(result.permissionDecision, "allow", `expected allow for: ${command}`);
+  }
+});
+
+test("Codex hook deny takes precedence over allow", () => {
+  // "git push" matches both "git*" (allow) and "git push*" (deny)
+  // deny must win
+  const dir = mkdtempSync(join(tmpdir(), "agentctl-precedence-"));
+  const hook = join(dir, "policy.py");
+  writeFileSync(hook, renderCodexHook(p));
+  const run = spawnSync("python3", [hook], {
+    input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "git push origin main" } }),
+    encoding: "utf8"
+  });
+  const result = JSON.parse(run.stdout);
+  assert.equal(result.permissionDecision, "deny");
 });
