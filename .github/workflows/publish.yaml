@@ -28,7 +28,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -55,9 +54,7 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: pnpm publish --no-git-checks --tag ${{ steps.meta.outputs.npm_tag }} --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish --no-git-checks --ignore-scripts --tag ${{ steps.meta.outputs.npm_tag }} --provenance --access public
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
