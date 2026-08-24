@@ -19,13 +19,13 @@ test("Kiro renders valid YAML with correct rule structure", () => {
   assert.equal(parsed.rules.length, 4);
 });
 
-test("Kiro emits fs_read allow and fs_write allow for permissive filesystem", () => {
+test("Kiro emits fs_read allow and fs_write allow with match **", () => {
   const output = renderKiro(permissions);
   const parsed = parse(output) as {
     rules: Array<{ capability: string; effect: string; match?: string[] }>;
   };
-  assert.deepEqual(parsed.rules[0], { capability: "fs_read", effect: "allow" });
-  assert.deepEqual(parsed.rules[1], { capability: "fs_write", effect: "allow" });
+  assert.deepEqual(parsed.rules[0], { capability: "fs_read", effect: "allow", match: ["**"] });
+  assert.deepEqual(parsed.rules[1], { capability: "fs_write", effect: "allow", match: ["**"] });
 });
 
 test("Kiro emits shell deny patterns as exclude on allow rule", () => {

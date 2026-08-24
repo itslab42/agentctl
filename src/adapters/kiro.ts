@@ -24,12 +24,13 @@ export function renderKiro(permissions: Permissions): string {
 
   // --- Filesystem rules ---
   // Kiro uses "fs_read" (always allowed in agentctl model) and "fs_write" for edits/writes.
-  rules.push({ capability: "fs_read", effect: "allow" });
+  // match: ["**"] is required for Kiro to apply the rule to all paths.
+  rules.push({ capability: "fs_read", effect: "allow", match: ["**"] });
 
   // Map filesystem.edit and filesystem.write to fs_write effect.
   // Use the more permissive of the two (edit/write both gate fs_write in Kiro).
   const fsEffect = mostPermissive(permissions.filesystem.edit, permissions.filesystem.write);
-  rules.push({ capability: "fs_write", effect: fsEffect });
+  rules.push({ capability: "fs_write", effect: fsEffect, match: ["**"] });
 
   // --- Shell rules ---
   // Use exclude field for deny patterns (Kiro's deny-overrides means a separate
