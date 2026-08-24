@@ -101,8 +101,15 @@ async function runInit(root: string): Promise<void> {
 
 async function main(): Promise<void> {
   const command = process.argv[2];
+  if (command === "--version" || command === "-V") {
+    const pkg = JSON.parse(await readFile(resolve(__dirname, "../package.json"), "utf8")) as {
+      version: string;
+    };
+    console.log(pkg.version);
+    return;
+  }
   if (!command || !["init", "sync", "check", "validate", "diff"].includes(command)) {
-    console.error("Usage: agentctl <init|sync|check|validate|diff>");
+    console.error("Usage: agentctl <init|sync|check|validate|diff|--version>");
     process.exitCode = 2;
     return;
   }

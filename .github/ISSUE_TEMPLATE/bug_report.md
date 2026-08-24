@@ -26,7 +26,7 @@ What actually happened. Include any error output or unexpected config generated.
 
 ## Environment
 
-- agentctl version: (check `"version"` in `node_modules/@lab42/agentctl/package.json`)
+- agentctl version: (`agentctl --version`)
 - Node version: (`node -v`)
 - OS:
 - Agent(s) affected: (claude / codex / kiro / opencode / all)
