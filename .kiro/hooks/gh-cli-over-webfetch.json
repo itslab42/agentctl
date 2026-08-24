@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Prefer gh CLI over web_fetch for GitHub URLs",
+      "trigger": "PreToolUse",
+      "description": "When web_fetch targets a GitHub issue or PR URL, prompts to use gh CLI instead as per AGENTS.md rules.",
+      "matcher": "web_fetch",
+      "action": {
+        "type": "command",
+        "command": "INPUT=$(cat); URL=$(echo \"$INPUT\" | grep -o '\"url\":\"[^\"]*\"' | head -1 | sed 's/\"url\":\"//;s/\"//'); if echo \"$URL\" | grep -qE 'github\\.com/.+/(issues|pull)/[0-9]+'; then echo '{\"hookSpecificOutput\":{\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Use gh CLI instead (gh issue view / gh pr view). See AGENTS.md.\"}}'; exit 0; fi; exit 0"
+      }
+    }
+  ]
+}
