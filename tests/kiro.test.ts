@@ -7,7 +7,7 @@ import { Permissions } from "../src/permissions";
 const permissions: Permissions = {
   policy: { precedence: "deny_over_allow" },
   filesystem: { edit: "allow", write: "allow" },
-  shell: { default: "ask", allow: ["git*", "pnpm*"], deny: ["git push*"] }
+  shell: { default: "ask", allow: ["git *", "pnpm *"], deny: ["git push *"] }
 };
 
 test("Kiro renders valid YAML with correct rule structure", () => {
@@ -35,7 +35,7 @@ test("Kiro emits shell deny patterns as exclude on allow rule", () => {
   };
   const allowRule = parsed.rules.find((r) => r.capability === "shell" && r.effect === "allow");
   assert.ok(allowRule, "must have a shell allow rule");
-  assert.deepEqual(allowRule.exclude, ["git push*"]);
+  assert.deepEqual(allowRule.exclude, ["git push *"]);
 });
 
 test("Kiro emits shell allow rules with match patterns", () => {
@@ -45,7 +45,7 @@ test("Kiro emits shell allow rules with match patterns", () => {
   };
   const allowRule = parsed.rules.find((r) => r.capability === "shell" && r.effect === "allow");
   assert.ok(allowRule, "must have a shell allow rule");
-  assert.deepEqual(allowRule.match, ["git*", "pnpm*"]);
+  assert.deepEqual(allowRule.match, ["git *", "pnpm *"]);
 });
 
 test("Kiro emits shell default as catch-all (no match field)", () => {
