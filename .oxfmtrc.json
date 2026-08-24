@@ -2,5 +2,12 @@
   "semi": true,
   "singleQuote": false,
   "trailingComma": "none",
-  "ignorePatterns": ["dist", "dist-test", "node_modules", ".pnpm-store", ".artifacts"]
+  "ignorePatterns": [
+    "dist",
+    "dist-test",
+    "node_modules",
+    ".pnpm-store",
+    ".artifacts",
+    "graphify-out"
+  ]
 }
