@@ -6,6 +6,9 @@ updates:
       interval: weekly
     labels:
       - dependencies
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">=7.0.0", "<7.1.0"]
 
   - package-ecosystem: github-actions
     directory: "/"
