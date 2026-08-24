@@ -6,12 +6,16 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
     environment: release
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,7 +55,7 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: pnpm publish --no-git-checks --tag ${{ steps.meta.outputs.npm_tag }} --access public
+        run: pnpm publish --no-git-checks --tag ${{ steps.meta.outputs.npm_tag }} --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
