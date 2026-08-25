@@ -157,6 +157,14 @@ async function runScan(root: string): Promise<void> {
     console.log(`  ${runtime.path.padEnd(40)} → ${parts.join(", ")}`);
   }
 
+  // Print warnings about generated files
+  if (result.warnings.length > 0) {
+    console.log("");
+    for (const warning of result.warnings) {
+      console.log(`⚠ Warning: ${warning}. Scanning it is redundant.`);
+    }
+  }
+
   // Print conflicts
   if (result.conflicts.length > 0) {
     console.log("");
