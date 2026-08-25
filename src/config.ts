@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parse } from "yaml";
 import { Permissions, parsePermissions } from "./permissions";
+import { McpConfig, parseMcpConfig } from "./mcp";
 
 export interface ClaudeSettings {
   alwaysThinkingEnabled: boolean;
@@ -19,8 +20,8 @@ export interface AgentctlConfig {
   project: { name: string };
   runtimes: Record<"claude" | "codex" | "cursor" | "kiro" | "opencode", { enabled: boolean }>;
   claude: ClaudeSettings;
-  sync: { permissions: boolean };
-  files: { permissions: string };
+  sync: { permissions: boolean; mcp: boolean };
+  files: { permissions: string; mcp?: string };
 }
 
 function object(value: unknown, label: string): Record<string, unknown> {
@@ -83,8 +84,14 @@ export function parseConfig(raw: unknown): AgentctlConfig {
       opencode: runtime(runtimes, "opencode")
     },
     claude,
-    sync: { permissions: bool(sync.permissions, "sync.permissions") },
-    files: { permissions: string(files.permissions, "files.permissions") }
+    sync: {
+      permissions: bool(sync.permissions, "sync.permissions"),
+      mcp: sync.mcp !== undefined ? bool(sync.mcp, "sync.mcp") : false
+    },
+    files: {
+      permissions: string(files.permissions, "files.permissions"),
+      mcp: files.mcp !== undefined ? string(files.mcp, "files.mcp") : undefined
+    }
   };
 }
 
@@ -98,9 +105,13 @@ async function yamlFile(path: string): Promise<unknown> {
 
 export async function loadSource(
   root: string
-): Promise<{ config: AgentctlConfig; permissions: Permissions }> {
+): Promise<{ config: AgentctlConfig; permissions: Permissions; mcp?: McpConfig }> {
   const configPath = resolve(root, ".ai/config.yaml");
   const config = parseConfig(await yamlFile(configPath));
   const permissions = parsePermissions(await yamlFile(resolve(root, config.files.permissions)));
-  return { config, permissions };
+  let mcp: McpConfig | undefined;
+  if (config.files.mcp) {
+    mcp = parseMcpConfig(await yamlFile(resolve(root, config.files.mcp)));
+  }
+  return { config, permissions, mcp };
 }
