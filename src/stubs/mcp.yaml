@@ -1,0 +1,38 @@
+# MCP (Model Context Protocol) server configuration.
+# Each entry under "servers" defines an MCP server available to all supported runtimes.
+#
+# Transport types:
+#   stdio           — local command (requires: command, optional: args, env)
+#   streamable-http — remote endpoint (requires: url, optional: env)
+#
+# Environment variables: use ${VAR_NAME} syntax to reference secrets.
+# Do NOT put actual secrets here — use env var references instead.
+
+servers:
+  # Example: filesystem access via stdio
+  # filesystem:
+  #   transport: stdio
+  #   command: npx
+  #   args:
+  #     - "-y"
+  #     - "@modelcontextprotocol/server-filesystem"
+  #     - "/path/to/allowed/directory"
+
+  # Example: GitHub MCP server via Docker
+  # github:
+  #   transport: stdio
+  #   command: docker
+  #   args:
+  #     - run
+  #     - "-i"
+  #     - "--rm"
+  #     - "-e"
+  #     - GITHUB_PERSONAL_ACCESS_TOKEN
+  #     - "ghcr.io/github/github-mcp-server"
+  #   env:
+  #     GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+
+  # Example: remote MCP server via HTTP
+  # my-api:
+  #   transport: streamable-http
+  #   url: "http://localhost:3001/mcp"

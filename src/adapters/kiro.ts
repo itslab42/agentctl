@@ -1,5 +1,6 @@
 import { stringify } from "yaml";
 import { Permissions } from "../permissions";
+import { McpConfig } from "../mcp";
 
 interface KiroRule {
   capability: string;
@@ -56,4 +57,21 @@ export function renderKiro(permissions: Permissions): string {
   return output
     .replace(/\n  - capability:/g, "\n\n  - capability:")
     .replace("rules:\n\n", "rules:\n");
+}
+
+/** Renders `.kiro/mcp.json` — same MCP standard format as Cursor. */
+export function renderKiroMcp(mcp: McpConfig): string {
+  const mcpServers: Record<string, Record<string, unknown>> = {};
+  for (const [name, server] of Object.entries(mcp.servers)) {
+    const entry: Record<string, unknown> = {};
+    if (server.transport === "stdio") {
+      entry.command = server.command;
+      if (server.args && server.args.length > 0) entry.args = server.args;
+    } else {
+      entry.url = server.url;
+    }
+    if (server.env && Object.keys(server.env).length > 0) entry.env = server.env;
+    mcpServers[name] = entry;
+  }
+  return `${JSON.stringify({ mcpServers }, null, 2)}\n`;
 }

@@ -1,4 +1,27 @@
 import { Permissions } from "../permissions";
+import { McpConfig } from "../mcp";
+
+/** Renders MCP server config as JSON for a standard mcpServers format. */
+function renderMcpServers(mcp: McpConfig): Record<string, Record<string, unknown>> {
+  const mcpServers: Record<string, Record<string, unknown>> = {};
+  for (const [name, server] of Object.entries(mcp.servers)) {
+    const entry: Record<string, unknown> = {};
+    if (server.transport === "stdio") {
+      entry.command = server.command;
+      if (server.args && server.args.length > 0) entry.args = server.args;
+    } else {
+      entry.url = server.url;
+    }
+    if (server.env && Object.keys(server.env).length > 0) entry.env = server.env;
+    mcpServers[name] = entry;
+  }
+  return mcpServers;
+}
+
+/** Renders `.cursor/mcp.json` from MCP config. */
+export function renderCursorMcp(mcp: McpConfig): string {
+  return `${JSON.stringify({ mcpServers: renderMcpServers(mcp) }, null, 2)}\n`;
+}
 
 /**
  * Renders a Cursor project rule (MDC format) that encodes agentctl's

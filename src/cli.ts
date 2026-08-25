@@ -7,8 +7,8 @@ import { unifiedDiff } from "./diff";
 import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
 import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
-import { renderKiro } from "./adapters/kiro";
-import { renderCursorRule } from "./adapters/cursor";
+import { renderKiro, renderKiroMcp } from "./adapters/kiro";
+import { renderCursorRule, renderCursorMcp } from "./adapters/cursor";
 import { scan } from "./scan";
 
 interface GeneratedFile {
@@ -21,11 +21,16 @@ interface GeneratedFile {
 function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>): GeneratedFile[] {
   if (!source.config.sync.permissions) return [];
   const files: GeneratedFile[] = [];
+  const mcpEnabled = source.config.sync.mcp && source.mcp;
   if (source.config.runtimes.claude.enabled)
     files.push({
       runtime: "Claude",
       path: resolve(root, ".claude/settings.json"),
-      content: renderClaude(source.permissions, source.config.claude)
+      content: renderClaude(
+        source.permissions,
+        source.config.claude,
+        mcpEnabled ? source.mcp : undefined
+      )
     });
   if (source.config.runtimes.opencode.enabled)
     files.push({
@@ -46,18 +51,32 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
       executable: true
     });
   }
-  if (source.config.runtimes.cursor.enabled)
+  if (source.config.runtimes.cursor.enabled) {
     files.push({
       runtime: "Cursor",
       path: resolve(root, ".cursor/rules/agentctl-permissions/RULE.md"),
       content: renderCursorRule(source.permissions)
     });
-  if (source.config.runtimes.kiro.enabled)
+    if (mcpEnabled)
+      files.push({
+        runtime: "Cursor",
+        path: resolve(root, ".cursor/mcp.json"),
+        content: renderCursorMcp(source.mcp!)
+      });
+  }
+  if (source.config.runtimes.kiro.enabled) {
     files.push({
       runtime: "Kiro",
       path: resolve(root, ".kiro/settings/permissions.yaml"),
       content: renderKiro(source.permissions)
     });
+    if (mcpEnabled)
+      files.push({
+        runtime: "Kiro",
+        path: resolve(root, ".kiro/mcp.json"),
+        content: renderKiroMcp(source.mcp!)
+      });
+  }
   return files;
 }
 
