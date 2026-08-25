@@ -1,61 +1,103 @@
 # agentctl
 
-[![CI](https://github.com/itslab42/agentctl/actions/workflows/ci.yml/badge.svg)](https://github.com/itslab42/agentctl/actions/workflows/ci.yml)
+[![CI](https://github.com/itslab42/agentctl/actions/workflows/ci.yaml/badge.svg)](https://github.com/itslab42/agentctl/actions/workflows/ci.yaml)
 [![npm](https://img.shields.io/npm/v/@lab42/agentctl)](https://www.npmjs.com/package/@lab42/agentctl)
 [![license](https://img.shields.io/npm/l/@lab42/agentctl)](./LICENSE)
 
-`agentctl` keeps AI coding-agent configuration in one runtime-neutral `.ai/` directory and generates settings for Claude Code, Codex CLI, and OpenCode.
+Single source of truth for AI coding-agent permissions. Define once in `.ai/`, generate configs for **Claude Code**, **Codex CLI**, **OpenCode**, **Cursor**, and **Kiro**.
 
-## Install
+## Quick Start
 
 ```bash
 pnpm add -D @lab42/agentctl
 
-# quick start
-pnpm exec agentctl init
-pnpm exec agentctl sync
+pnpm exec agentctl init   # scaffold .ai/config.yaml + permissions.yaml
+pnpm exec agentctl sync   # generate runtime configs
+```
+
+Or reverse-import from existing configs:
+
+```bash
+pnpm exec agentctl scan   # detect .claude/, .codex/, .cursor/, .kiro/, .opencode/ and import
 ```
 
 ## Commands
 
-```bash
-pnpm exec agentctl init      # scaffold .ai/config.yaml and .ai/permissions.yaml
-pnpm exec agentctl validate  # validate source files without generating anything
-pnpm exec agentctl sync      # write generated agent config files
-pnpm exec agentctl check     # report drift without writing
-pnpm exec agentctl diff      # unified diff of what sync would change
-pnpm exec agentctl status    # one-line sync summary per runtime
+| Command                                       | Description                                           |
+| --------------------------------------------- | ----------------------------------------------------- |
+| `agentctl init`                               | Scaffold `.ai/config.yaml` and `.ai/permissions.yaml` |
+| `agentctl sync`                               | Generate runtime config files from `.ai/`             |
+| `agentctl validate`                           | Validate source files without generating              |
+| `agentctl check`                              | Report drift without writing (exit 1 if drifted)      |
+| `agentctl diff`                               | Unified diff of what `sync` would change              |
+| `agentctl status`                             | One-line sync summary per runtime                     |
+| `agentctl scan`                               | Reverse-import existing runtime configs into `.ai/`   |
+| `agentctl allow <pattern...>`                 | Add glob patterns to the allow list                   |
+| `agentctl deny <pattern...>`                  | Add glob patterns to the deny list                    |
+| `agentctl remove --allow/--deny <pattern...>` | Remove patterns from a list                           |
+
+All commands support `--color` / `--no-color`. Mutation commands (`allow`, `deny`, `remove`) support `--dry-run` and `--sync`.
+
+## How It Works
+
+```text
+.ai/config.yaml         ← runtimes, project name, settings
+.ai/permissions.yaml    ← shell + filesystem permissions (deny_over_allow)
+.ai/mcp.yaml            ← MCP server declarations (optional)
+        │
+        ▼  agentctl sync
+┌───────────────────────────────────────────┐
+│  .claude/settings.json                    │
+│  .codex/config.toml + hooks/             │
+│  .cursor/rules/agentctl-permissions/      │
+│  .kiro/settings/permissions.yaml          │
+│  .opencode/opencode.json                  │
+│  .cursor/mcp.json  .kiro/mcp.json        │
+└───────────────────────────────────────────┘
 ```
 
-Run commands from the target project directory. `sync` is the only command that writes generated files. `check`, `diff`, and `status` only compare against the configuration generated in memory.
+Config flows one direction. Generated files are never read back as input.
 
-`status` prints a quick overview of each runtime's sync state:
+## Status Example
 
 ```
 claude     ✓ in sync
 codex      ✗ out of sync (.codex/config.toml)
+cursor     ✓ in sync
 kiro       ✓ in sync
 opencode   – not configured
 ```
 
-Exits 0 if all in sync, 1 if any drift is detected (useful for CI).
+Exits 0 if all in sync, 1 if drift detected — useful for CI.
 
-## Source files
+## MCP Configuration
 
-```text
-.ai/config.yaml
-.ai/permissions.yaml
+Declare MCP servers once in `.ai/mcp.yaml`:
+
+```yaml
+servers:
+  my-server:
+    transport: stdio
+    command: npx
+    args: ["-y", "my-mcp-server"]
+    env:
+      API_KEY: "${API_KEY}"
 ```
 
-`config.yaml` controls which runtimes are enabled and the paths to the source files. `permissions.yaml` is runtime-neutral, with `deny_over_allow` precedence. Generated files are deliberately never read as an input policy source.
+Then `agentctl sync` renders the correct format for each runtime that supports MCP.
 
 ## Development
 
 ```bash
 pnpm install
-pnpm typecheck
-pnpm test
+pnpm check        # format + lint + typecheck + test
 pnpm build
 ```
 
-The Codex adapter uses `approval_policy` and `sandbox_mode` for general execution, plus a generated Python PreToolUse deny hook. The hook is generated from the canonical deny patterns and should not be edited directly.
+- **Test runner**: Node.js built-in (`node --test`)
+- **Linter/Formatter**: OXLint + OxFmt
+- **Build**: `tsc` → `dist/`, stubs copy, then `oxc-minify`
+
+## License
+
+[Apache-2.0](./LICENSE)
