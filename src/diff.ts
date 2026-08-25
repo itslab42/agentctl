@@ -1,3 +1,5 @@
+import { color } from "./color";
+
 type Op = { type: "same" | "add" | "remove"; line: string };
 
 const CONTEXT = 3;
@@ -85,4 +87,18 @@ export function unifiedDiff(path: string, before: string | undefined, after: str
       out.push((op.type === "same" ? " " : op.type === "add" ? "+" : "-") + op.line);
   }
   return out.join("\n") + "\n";
+}
+
+/** Apply ANSI colors to a unified-diff string, line by line. */
+export function colorize(diff: string): string {
+  return diff
+    .split("\n")
+    .map((line) => {
+      if (line.startsWith("---") || line.startsWith("+++")) return color.bold(line);
+      if (line.startsWith("@@")) return color.cyan(line);
+      if (line.startsWith("+")) return color.green(line);
+      if (line.startsWith("-")) return color.red(line);
+      return line;
+    })
+    .join("\n");
 }
