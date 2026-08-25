@@ -3,7 +3,8 @@ import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { loadSource } from "./config";
-import { unifiedDiff } from "./diff";
+import { unifiedDiff, colorize } from "./diff";
+import { color, setForceColor } from "./color";
 import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
 import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
@@ -187,7 +188,11 @@ async function runScan(root: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const command = process.argv[2];
+  const args = process.argv.slice(2);
+  if (args.includes("--color")) setForceColor(true);
+  else if (args.includes("--no-color")) setForceColor(false);
+
+  const command = args.find((a) => !a.startsWith("--"));
   if (command === "--version" || command === "-V") {
     const pkg = JSON.parse(await readFile(resolve(__dirname, "../package.json"), "utf8")) as {
       version: string;
@@ -232,7 +237,7 @@ async function main(): Promise<void> {
     for (const name of allRuntimes) {
       const enabled = source.config.runtimes[name].enabled;
       if (!enabled) {
-        console.log(`${name.padEnd(10)} – not configured`);
+        console.log(color.dim(`${name.padEnd(10)} – not configured`));
         continue;
       }
       const runtimeFiles = files.filter((f) => f.runtime.toLowerCase() === name);
@@ -247,9 +252,9 @@ async function main(): Promise<void> {
       }
       if (diffs.length > 0) {
         drift = true;
-        console.log(`${name.padEnd(10)} ✗ out of sync (${diffs.join(", ")})`);
+        console.log(color.red(`${name.padEnd(10)} ✗ out of sync (${diffs.join(", ")})`));
       } else {
-        console.log(`${name.padEnd(10)} ✓ in sync`);
+        console.log(color.green(`${name.padEnd(10)} ✓ in sync`));
       }
     }
     if (drift) process.exitCode = 1;
@@ -276,9 +281,11 @@ async function main(): Promise<void> {
       (file.executable && (!existsSync(file.path) || ((await stat(file.path)).mode & 0o111) === 0));
     if (differs) {
       drift = true;
-      if (command === "check") console.log(`✗ Out of sync: ${display(root, file.path)}`);
-      else process.stdout.write(unifiedDiff(display(root, file.path), before, file.content));
-    } else if (command === "check") console.log(`✓ In sync: ${display(root, file.path)}`);
+      if (command === "check") console.log(color.red(`✗ Out of sync: ${display(root, file.path)}`));
+      else
+        process.stdout.write(colorize(unifiedDiff(display(root, file.path), before, file.content)));
+    } else if (command === "check")
+      console.log(color.green(`✓ In sync: ${display(root, file.path)}`));
   }
   if (command === "check")
     console.log(
