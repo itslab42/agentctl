@@ -71,6 +71,7 @@ agentctl --version # print version
 ## Commit Instructions
 
 - Title format: `type(scope?): subject`
+- Always do atomic commits.
 - Always run `pnpm lint`, `pnpm format:check` and `pnpm test` before committing.
 - Never use yourself as co-author.
 
