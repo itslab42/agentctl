@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { loadSource } from "./config";
 import { unifiedDiff } from "./diff";
+import { addPattern, mutatePermissions, removePattern } from "./mutate";
 import { renderClaude } from "./adapters/claude";
 import { renderOpenCode } from "./adapters/opencode";
 import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
@@ -167,6 +168,124 @@ async function runScan(root: string): Promise<void> {
   console.log("  .ai/permissions.yaml");
 }
 
+async function runMutate(root: string, command: string): Promise<void> {
+  const args = process.argv.slice(3);
+  const dryRun = args.includes("--dry-run");
+  const doSync = args.includes("--sync");
+  const patterns = args.filter((a) => !a.startsWith("--"));
+
+  let list: "allow" | "deny";
+  let action: "add" | "remove";
+
+  if (command === "allow") {
+    list = "allow";
+    action = "add";
+  } else if (command === "deny") {
+    list = "deny";
+    action = "add";
+  } else if (command === "add") {
+    if (args.includes("--allow")) list = "allow";
+    else if (args.includes("--deny")) list = "deny";
+    else {
+      console.error("❌ agentctl add requires --allow or --deny flag");
+      process.exitCode = 2;
+      return;
+    }
+    action = "add";
+  } else {
+    // remove
+    if (args.includes("--allow")) list = "allow";
+    else if (args.includes("--deny")) list = "deny";
+    else {
+      console.error("❌ agentctl remove requires --allow or --deny flag");
+      process.exitCode = 2;
+      return;
+    }
+    action = "remove";
+  }
+
+  // For add/remove commands, filter out the --allow/--deny flags from patterns
+  const filteredPatterns =
+    command === "add" || command === "remove"
+      ? patterns.filter((p) => p !== "--allow" && p !== "--deny")
+      : patterns;
+
+  if (filteredPatterns.length === 0) {
+    console.error(`❌ No patterns provided. Usage: agentctl ${command} "<pattern>"`);
+    process.exitCode = 2;
+    return;
+  }
+
+  // Determine permissions file path
+  let permissionsPath: string;
+  try {
+    const source = await loadSource(root);
+    permissionsPath = source.config.files.permissions;
+  } catch {
+    permissionsPath = ".ai/permissions.yaml";
+  }
+
+  try {
+    const result = await mutatePermissions(
+      root,
+      permissionsPath,
+      (doc) => {
+        for (const pattern of filteredPatterns) {
+          if (action === "add") {
+            addPattern(doc, list, pattern);
+          } else {
+            const removed = removePattern(doc, list, pattern);
+            if (!removed) {
+              console.warn(`⚠ Pattern "${pattern}" not found in shell.${list}`);
+            }
+          }
+        }
+      },
+      { dryRun }
+    );
+
+    if (dryRun) {
+      if (result.changed) {
+        console.log(result.content);
+      } else {
+        console.log("No changes.");
+      }
+      return;
+    }
+
+    if (result.changed) {
+      const verb = action === "add" ? "Added to" : "Removed from";
+      for (const pattern of filteredPatterns) {
+        console.log(`✓ ${verb} shell.${list}: ${pattern}`);
+      }
+    }
+  } catch (error) {
+    console.error(`❌ ${(error as Error).message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (doSync) {
+    let source: Awaited<ReturnType<typeof loadSource>>;
+    try {
+      source = await loadSource(root);
+    } catch (error) {
+      console.error(`❌ Validation failed: ${(error as Error).message}`);
+      process.exitCode = 1;
+      return;
+    }
+    const files = expected(root, source);
+    console.log("");
+    for (const file of files) {
+      await mkdir(resolve(file.path, ".."), { recursive: true });
+      await writeFile(file.path, file.content, "utf8");
+      if (file.executable) await chmod(file.path, 0o755);
+      console.log(`✓ ${file.runtime.padEnd(10)} → ${display(root, file.path)}`);
+    }
+    console.log("\n✅ Sync complete.");
+  }
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2];
   if (command === "--version" || command === "-V") {
@@ -178,9 +297,23 @@ async function main(): Promise<void> {
   }
   if (
     !command ||
-    !["init", "sync", "check", "validate", "diff", "status", "scan"].includes(command)
+    ![
+      "init",
+      "sync",
+      "check",
+      "validate",
+      "diff",
+      "status",
+      "scan",
+      "allow",
+      "deny",
+      "add",
+      "remove"
+    ].includes(command)
   ) {
-    console.error("Usage: agentctl <init|sync|check|validate|diff|status|scan|--version>");
+    console.error(
+      "Usage: agentctl <init|sync|check|validate|diff|status|scan|allow|deny|add|remove|--version>"
+    );
     process.exitCode = 2;
     return;
   }
@@ -191,6 +324,10 @@ async function main(): Promise<void> {
   }
   if (command === "scan") {
     await runScan(root);
+    return;
+  }
+  if (command === "allow" || command === "deny" || command === "add" || command === "remove") {
+    await runMutate(root, command);
     return;
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
