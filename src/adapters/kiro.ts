@@ -1,5 +1,5 @@
 import { stringify } from "yaml";
-import { Permissions } from "../permissions";
+import { Permissions, GENERATED_MARKER } from "../permissions";
 import { McpConfig } from "../mcp";
 
 interface KiroRule {
@@ -54,9 +54,10 @@ export function renderKiro(permissions: Permissions): string {
 
   const output = stringify({ rules }, { lineWidth: 120 });
   // Add a blank line between each rule entry for readability.
-  return output
+  const formatted = output
     .replace(/\n  - capability:/g, "\n\n  - capability:")
     .replace("rules:\n\n", "rules:\n");
+  return `# ${GENERATED_MARKER}\n${formatted}`;
 }
 
 /** Renders `.kiro/mcp.json` — same MCP standard format as Cursor. */

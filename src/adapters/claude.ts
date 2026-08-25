@@ -1,4 +1,4 @@
-import { Permissions } from "../permissions";
+import { Permissions, GENERATED_MARKER } from "../permissions";
 import { ClaudeSettings, claudeDefaults } from "../config";
 import { McpConfig } from "../mcp";
 
@@ -19,6 +19,7 @@ export function renderClaude(
   }
   const value: Record<string, unknown> = {
     $schema: "https://json.schemastore.org/claude-code-settings.json",
+    _generatedBy: GENERATED_MARKER,
     cleanupPeriodDays: settings.cleanupPeriodDays,
     alwaysThinkingEnabled: settings.alwaysThinkingEnabled,
     permissions: { allow, deny: permissions.shell.deny.map((pattern) => `Bash(${pattern})`) }
