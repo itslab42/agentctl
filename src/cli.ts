@@ -20,6 +20,7 @@ import {
   renderKiroInstructions,
   renderOpenCodeInstructions
 } from "./instructions";
+import { presets, renderPreset, listPresetNames } from "./presets";
 
 interface GeneratedFile {
   path: string;
@@ -160,19 +161,51 @@ async function projectName(root: string): Promise<string> {
 }
 
 async function runInit(root: string): Promise<void> {
+  const args = process.argv.slice(3);
+
+  // --list-presets: show available presets and exit
+  if (args.includes("--list-presets")) {
+    console.log("Available permission presets:\n");
+    for (const preset of Object.values(presets)) {
+      console.log(`  ${preset.name.padEnd(12)} ${preset.description}`);
+    }
+    console.log("\nUsage: agentctl init --preset <name>");
+    return;
+  }
+
   const aiDir = resolve(root, ".ai");
   if (existsSync(aiDir)) {
     console.error("❌ .ai/ already exists. Remove it first if you want to re-initialize.");
     process.exitCode = 1;
     return;
   }
+
+  // Parse --preset flag
+  const presetIdx = args.indexOf("--preset");
+  let presetName: string | undefined;
+  if (presetIdx !== -1) {
+    presetName = args[presetIdx + 1];
+    if (!presetName || !listPresetNames().includes(presetName)) {
+      console.error(
+        `❌ Unknown preset "${presetName ?? ""}". Available: ${listPresetNames().join(", ")}`
+      );
+      process.exitCode = 2;
+      return;
+    }
+  }
+
   const stubsDir = resolve(__dirname, "stubs");
   const name = await projectName(root);
   const config = (await readFile(resolve(stubsDir, "config.yaml"), "utf8")).replace(
     "__PROJECT_NAME__",
     name
   );
-  const permissions = await readFile(resolve(stubsDir, "permissions.yaml"), "utf8");
+
+  // Use preset permissions if specified, otherwise use the stub
+  const permissions = presetName
+    ? renderPreset(presets[presetName])
+    : await readFile(resolve(stubsDir, "permissions.yaml"), "utf8");
+
   await mkdir(aiDir, { recursive: true });
   await writeFile(resolve(aiDir, "config.yaml"), config, "utf8");
   await writeFile(resolve(aiDir, "permissions.yaml"), permissions, "utf8");
@@ -181,7 +214,11 @@ async function runInit(root: string): Promise<void> {
     await readFile(resolve(stubsDir, "instructions.md"), "utf8"),
     "utf8"
   );
-  console.log("✅ Initialized .ai/config.yaml, .ai/permissions.yaml, and .ai/instructions.md");
+
+  const presetMsg = presetName ? ` (preset: ${presetName})` : "";
+  console.log(
+    `✅ Initialized .ai/config.yaml, .ai/permissions.yaml${presetMsg}, and .ai/instructions.md`
+  );
   console.log("   Edit them, then run: agentctl sync");
   console.log("   Tip: add generated dirs to .gitignore (.claude/ .codex/ .opencode/)");
 }
