@@ -10,16 +10,22 @@ Single source of truth for AI coding-agent permissions. Define once in `.ai/`, g
 ## Quick Start
 
 ```bash
-pnpm add -D @lab42/agentctl
+# Try it instantly (no install)
+npx @lab42/agentctl@latest init
+npx @lab42/agentctl@latest sync
+```
 
-pnpm exec agentctl init   # scaffold .ai/config.yaml + permissions.yaml
-pnpm exec agentctl sync   # generate runtime configs
+```bash
+# Or add as a dev dependency for the team
+pnpm add -D @lab42/agentctl
+pnpm exec agentctl init
+pnpm exec agentctl sync
 ```
 
 Or reverse-import from existing configs:
 
 ```bash
-pnpm exec agentctl scan   # detect .claude/, .codex/, .cursor/, .kiro/, .opencode/ and import
+npx @lab42/agentctl@latest scan   # detect .claude/, .codex/, .cursor/, .kiro/, .opencode/ and import
 ```
 
 ## Commands
