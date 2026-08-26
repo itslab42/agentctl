@@ -19,6 +19,7 @@ import {
 import { presets, renderPreset, listPresetNames } from "./presets";
 import { evaluate, formatForRuntime } from "./explain";
 import { audit, generateTestCommands, AuditResult, AuditSummary, AuditOptions } from "./audit";
+import { suggestCommand, formatError } from "./errors";
 
 interface GeneratedFile {
   path: string;
@@ -797,27 +798,39 @@ async function main(): Promise<void> {
     console.log(pkg.version);
     return;
   }
-  if (
-    !command ||
-    ![
-      "init",
-      "sync",
-      "check",
-      "validate",
-      "diff",
-      "status",
-      "scan",
-      "allow",
-      "deny",
-      "add",
-      "remove",
-      "explain",
-      "audit"
-    ].includes(command)
-  ) {
-    console.error(
-      "Usage: agentctl <init|sync|check|validate|diff|status|scan|allow|deny|add|remove|explain|audit|--version>"
-    );
+  const validCommands = [
+    "init",
+    "sync",
+    "check",
+    "validate",
+    "diff",
+    "status",
+    "scan",
+    "allow",
+    "deny",
+    "add",
+    "remove",
+    "explain",
+    "audit"
+  ];
+  if (!command || !validCommands.includes(command)) {
+    if (command) {
+      const suggestion = suggestCommand(command, validCommands);
+      const msg = suggestion
+        ? formatError({
+            message: `Unknown command "${command}"`,
+            hint: `Did you mean "${suggestion}"?`
+          })
+        : formatError({
+            message: `Unknown command "${command}"`,
+            hint: `Available commands: ${validCommands.join(", ")}`
+          });
+      console.error(msg);
+    } else {
+      console.error(
+        "Usage: agentctl <init|sync|check|validate|diff|status|scan|allow|deny|add|remove|explain|audit|--version>"
+      );
+    }
     process.exitCode = 2;
     return;
   }
