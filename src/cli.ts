@@ -182,6 +182,14 @@ async function updateGitignore(root: string, configYaml: string): Promise<void> 
   console.log(`   Updated .gitignore with ${toAdd.length} path(s)`);
 }
 
+/**
+ * Detect if agentctl is being run via npx (or similar one-off runner).
+ * Heuristic: the package is not installed in the project's node_modules.
+ */
+function isRunViaNpx(root: string): boolean {
+  return !existsSync(resolve(root, "node_modules", "@lab42", "agentctl"));
+}
+
 async function runInit(root: string): Promise<void> {
   const args = process.argv.slice(3);
 
@@ -246,6 +254,13 @@ async function runInit(root: string): Promise<void> {
   // Update .gitignore unless --no-gitignore
   if (!args.includes("--no-gitignore")) {
     await updateGitignore(root, config);
+  }
+
+  // Suggest adding as devDependency when running via npx
+  if (isRunViaNpx(root)) {
+    console.log(
+      "\n💡 Tip: add agentctl as a dev dependency so your team can run it too:\n   pnpm add -D @lab42/agentctl"
+    );
   }
 }
 
