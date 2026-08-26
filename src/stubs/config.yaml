@@ -15,8 +15,10 @@ runtimes:
 
 sync:
   permissions: true
+  instructions: true
   # mcp: true
 
 files:
   permissions: .ai/permissions.yaml
+  instructions: .ai/instructions.md
   # mcp: .ai/mcp.yaml

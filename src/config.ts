@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { parse } from "yaml";
 import { Permissions, parsePermissions } from "./permissions";
 import { McpConfig, parseMcpConfig } from "./mcp";
+import { Instructions, loadInstructions } from "./instructions";
 
 export interface ClaudeSettings {
   alwaysThinkingEnabled: boolean;
@@ -20,8 +21,8 @@ export interface AgentctlConfig {
   project: { name: string };
   runtimes: Record<"claude" | "codex" | "cursor" | "kiro" | "opencode", { enabled: boolean }>;
   claude: ClaudeSettings;
-  sync: { permissions: boolean; mcp: boolean };
-  files: { permissions: string; mcp?: string };
+  sync: { permissions: boolean; mcp: boolean; instructions: boolean };
+  files: { permissions: string; mcp?: string; instructions?: string };
 }
 
 function object(value: unknown, label: string): Record<string, unknown> {
@@ -86,11 +87,17 @@ export function parseConfig(raw: unknown): AgentctlConfig {
     claude,
     sync: {
       permissions: bool(sync.permissions, "sync.permissions"),
-      mcp: sync.mcp !== undefined ? bool(sync.mcp, "sync.mcp") : false
+      mcp: sync.mcp !== undefined ? bool(sync.mcp, "sync.mcp") : false,
+      instructions:
+        sync.instructions !== undefined ? bool(sync.instructions, "sync.instructions") : false
     },
     files: {
       permissions: string(files.permissions, "files.permissions"),
-      mcp: files.mcp !== undefined ? string(files.mcp, "files.mcp") : undefined
+      mcp: files.mcp !== undefined ? string(files.mcp, "files.mcp") : undefined,
+      instructions:
+        files.instructions !== undefined
+          ? string(files.instructions, "files.instructions")
+          : undefined
     }
   };
 }
@@ -103,9 +110,12 @@ async function yamlFile(path: string): Promise<unknown> {
   }
 }
 
-export async function loadSource(
-  root: string
-): Promise<{ config: AgentctlConfig; permissions: Permissions; mcp?: McpConfig }> {
+export async function loadSource(root: string): Promise<{
+  config: AgentctlConfig;
+  permissions: Permissions;
+  mcp?: McpConfig;
+  instructions?: Instructions;
+}> {
   const configPath = resolve(root, ".ai/config.yaml");
   const config = parseConfig(await yamlFile(configPath));
   const permissions = parsePermissions(await yamlFile(resolve(root, config.files.permissions)));
@@ -113,5 +123,9 @@ export async function loadSource(
   if (config.files.mcp) {
     mcp = parseMcpConfig(await yamlFile(resolve(root, config.files.mcp)));
   }
-  return { config, permissions, mcp };
+  let instructions: Instructions | undefined;
+  if (config.sync.instructions && config.files.instructions) {
+    instructions = await loadInstructions(root, config.files.instructions);
+  }
+  return { config, permissions, mcp, instructions };
 }

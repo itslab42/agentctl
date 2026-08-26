@@ -12,6 +12,14 @@ import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
 import { renderKiro, renderKiroMcp } from "./adapters/kiro";
 import { renderCursorRule, renderCursorMcp } from "./adapters/cursor";
 import { scan } from "./scan";
+import {
+  resolveForRuntime,
+  renderClaudeInstructions,
+  renderCodexInstructions,
+  renderCursorInstructions,
+  renderKiroInstructions,
+  renderOpenCodeInstructions
+} from "./instructions";
 
 interface GeneratedFile {
   path: string;
@@ -79,6 +87,51 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
         content: renderKiroMcp(source.mcp!)
       });
   }
+
+  // --- Instruction files ---
+  if (source.config.sync.instructions && source.instructions) {
+    if (source.config.runtimes.claude.enabled) {
+      const content = resolveForRuntime(source.instructions, "claude");
+      files.push({
+        runtime: "Claude",
+        path: resolve(root, "CLAUDE.md"),
+        content: renderClaudeInstructions(content)
+      });
+    }
+    if (source.config.runtimes.codex.enabled) {
+      const content = resolveForRuntime(source.instructions, "codex");
+      files.push({
+        runtime: "Codex",
+        path: resolve(root, "AGENTS.md"),
+        content: renderCodexInstructions(content)
+      });
+    }
+    if (source.config.runtimes.cursor.enabled) {
+      const content = resolveForRuntime(source.instructions, "cursor");
+      files.push({
+        runtime: "Cursor",
+        path: resolve(root, ".cursor/rules/agentctl-instructions/RULE.md"),
+        content: renderCursorInstructions(content)
+      });
+    }
+    if (source.config.runtimes.kiro.enabled) {
+      const content = resolveForRuntime(source.instructions, "kiro");
+      files.push({
+        runtime: "Kiro",
+        path: resolve(root, ".kiro/steering/agentctl-instructions.md"),
+        content: renderKiroInstructions(content)
+      });
+    }
+    if (source.config.runtimes.opencode.enabled) {
+      const content = resolveForRuntime(source.instructions, "opencode");
+      files.push({
+        runtime: "OpenCode",
+        path: resolve(root, "AGENTS.md"),
+        content: renderOpenCodeInstructions(content)
+      });
+    }
+  }
+
   return files;
 }
 
@@ -123,7 +176,12 @@ async function runInit(root: string): Promise<void> {
   await mkdir(aiDir, { recursive: true });
   await writeFile(resolve(aiDir, "config.yaml"), config, "utf8");
   await writeFile(resolve(aiDir, "permissions.yaml"), permissions, "utf8");
-  console.log("✅ Initialized .ai/config.yaml and .ai/permissions.yaml");
+  await writeFile(
+    resolve(aiDir, "instructions.md"),
+    await readFile(resolve(stubsDir, "instructions.md"), "utf8"),
+    "utf8"
+  );
+  console.log("✅ Initialized .ai/config.yaml, .ai/permissions.yaml, and .ai/instructions.md");
   console.log("   Edit them, then run: agentctl sync");
   console.log("   Tip: add generated dirs to .gitignore (.claude/ .codex/ .opencode/)");
 }
