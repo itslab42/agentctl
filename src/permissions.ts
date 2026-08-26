@@ -13,14 +13,16 @@ const values = new Set<PermissionValue>(["allow", "ask", "deny"]);
 
 function asObject(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
+    throw new Error(
+      `${label} must be an object.\n  Expected structure:\n    ${label}:\n      <key>: <value>`
+    );
   }
   return value as Record<string, unknown>;
 }
 
 function permission(value: unknown, label: string): PermissionValue {
   if (typeof value !== "string" || !values.has(value as PermissionValue)) {
-    throw new Error(`${label} must be one of: allow, ask, deny`);
+    throw new Error(`${label} must be one of: allow, ask, deny (got ${JSON.stringify(value)})`);
   }
   return value as PermissionValue;
 }
@@ -30,7 +32,9 @@ function patterns(value: unknown, label: string): string[] {
     !Array.isArray(value) ||
     value.some((item) => typeof item !== "string" || item.length === 0)
   ) {
-    throw new Error(`${label} must be an array of non-empty strings`);
+    throw new Error(
+      `${label} must be an array of non-empty strings.\n  Expected structure:\n    ${label.split(".").pop()}:\n      - "pattern/*"`
+    );
   }
   const result = value as string[];
   if (new Set(result).size !== result.length)
@@ -43,7 +47,9 @@ export function parsePermissions(raw: unknown): Permissions {
   const root = asObject(raw, "permissions");
   const policy = asObject(root.policy, "policy");
   if (policy.precedence !== "deny_over_allow") {
-    throw new Error("policy.precedence must be deny_over_allow");
+    throw new Error(
+      `policy.precedence must be "deny_over_allow" (got ${JSON.stringify(policy.precedence)})`
+    );
   }
   const filesystem = asObject(root.filesystem, "filesystem");
   const shell = asObject(root.shell, "shell");
