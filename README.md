@@ -3,6 +3,7 @@
 [![CI](https://github.com/itslab42/agentctl/actions/workflows/ci.yaml/badge.svg)](https://github.com/itslab42/agentctl/actions/workflows/ci.yaml)
 [![npm](https://img.shields.io/npm/v/@lab42/agentctl)](https://www.npmjs.com/package/@lab42/agentctl)
 [![license](https://img.shields.io/npm/l/@lab42/agentctl)](./LICENSE)
+[![Socket Badge](https://badge.socket.dev/npm/package/@lab42/agentctl)](https://badge.socket.dev/npm/package/@lab42/agentctl)
 
 Single source of truth for AI coding-agent permissions. Define once in `.ai/`, generate configs for **Claude Code**, **Codex CLI**, **OpenCode**, **Cursor**, and **Kiro**.
 
