@@ -17,6 +17,7 @@ import {
   renderOpenCodeInstructions
 } from "./instructions";
 import { presets, renderPreset, listPresetNames } from "./presets";
+import { evaluate, formatForRuntime } from "./explain";
 
 interface GeneratedFile {
   path: string;
@@ -491,6 +492,109 @@ async function doSync(root: string): Promise<void> {
   }
 }
 
+async function runExplain(root: string, args: string[]): Promise<void> {
+  // The command string is the first non-flag argument after "explain"
+  const explainArgs = args.slice(args.indexOf("explain") + 1);
+  const jsonOutput = explainArgs.includes("--json");
+  const verbose = explainArgs.includes("--verbose");
+  const runtimeIdx = explainArgs.indexOf("--runtime");
+  const runtimeFilter = runtimeIdx !== -1 ? explainArgs[runtimeIdx + 1] : undefined;
+  const cmd = explainArgs.find(
+    (a, i) => !a.startsWith("--") && (runtimeIdx === -1 || i !== runtimeIdx + 1)
+  );
+
+  if (!cmd) {
+    console.error(
+      "Usage: agentctl explain <shell-command> [--json] [--runtime <name>] [--verbose]"
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  let source: Awaited<ReturnType<typeof loadSource>>;
+  try {
+    source = await loadSource(root);
+  } catch (error) {
+    console.error(`❌ ${(error as Error).message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const coreResult = evaluate(cmd, source.permissions);
+
+  // Determine which runtimes to show
+  const runtimeNames = ["claude", "codex", "cursor", "kiro", "opencode"] as const;
+  let targetRuntimes: string[];
+  if (runtimeFilter) {
+    if (!runtimeNames.includes(runtimeFilter as (typeof runtimeNames)[number])) {
+      console.error(`❌ Unknown runtime "${runtimeFilter}". Available: ${runtimeNames.join(", ")}`);
+      process.exitCode = 2;
+      return;
+    }
+    targetRuntimes = [runtimeFilter];
+  } else {
+    // Show all enabled runtimes, or all if none enabled
+    const enabled = runtimeNames.filter(
+      (r) => source.config.runtimes[r as keyof typeof source.config.runtimes].enabled
+    );
+    targetRuntimes = enabled.length > 0 ? enabled : [...runtimeNames];
+  }
+
+  const results = targetRuntimes.map((r) => formatForRuntime(coreResult, r));
+
+  if (jsonOutput) {
+    const output = {
+      command: cmd,
+      results: results.map((r) => ({
+        runtime: r.runtime,
+        decision: r.decision,
+        reason: r.reason,
+        matchedPattern: r.matchedPattern ?? null,
+        matchedList: r.matchedList ?? null
+      }))
+    };
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
+  // Human-readable output
+  console.log(`\nCommand: ${color.bold(cmd)}\n`);
+
+  if (verbose) {
+    console.log(color.dim("  Deny patterns:"));
+    if (source.permissions.shell.deny.length === 0) {
+      console.log(color.dim("    (none)"));
+    } else {
+      for (const p of source.permissions.shell.deny) {
+        console.log(color.dim(`    - ${p}`));
+      }
+    }
+    console.log(color.dim("  Allow patterns:"));
+    if (source.permissions.shell.allow.length === 0) {
+      console.log(color.dim("    (none)"));
+    } else {
+      for (const p of source.permissions.shell.allow) {
+        console.log(color.dim(`    - ${p}`));
+      }
+    }
+    console.log(color.dim(`  Default: ${source.permissions.shell.default}\n`));
+  }
+
+  for (const result of results) {
+    const label = result.runtime.charAt(0).toUpperCase() + result.runtime.slice(1);
+    let decisionStr: string;
+    if (result.decision === "allow") {
+      decisionStr = color.green("ALLOW");
+    } else if (result.decision === "deny") {
+      decisionStr = color.red("DENY");
+    } else {
+      decisionStr = color.cyan("ASK");
+    }
+    console.log(`  ${label.padEnd(10)} → ${decisionStr}  (${result.reason})`);
+  }
+  console.log("");
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes("--color")) setForceColor(true);
@@ -517,11 +621,12 @@ async function main(): Promise<void> {
       "allow",
       "deny",
       "add",
-      "remove"
+      "remove",
+      "explain"
     ].includes(command)
   ) {
     console.error(
-      "Usage: agentctl <init|sync|check|validate|diff|status|scan|allow|deny|add|remove|--version>"
+      "Usage: agentctl <init|sync|check|validate|diff|status|scan|allow|deny|add|remove|explain|--version>"
     );
     process.exitCode = 2;
     return;
@@ -537,6 +642,10 @@ async function main(): Promise<void> {
   }
   if (command === "allow" || command === "deny" || command === "add" || command === "remove") {
     await runMutate(root, command);
+    return;
+  }
+  if (command === "explain") {
+    await runExplain(root, args);
     return;
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
