@@ -1,12 +1,11 @@
 {
-  "0": "permissions.ts",
+  "0": "config.ts",
   "1": "cli.ts",
   "2": "Permissions YAML Stub",
-  "3": "config.ts",
-  "4": "parseConfig",
-  "5": "Permissions",
-  "6": "diff.ts",
-  "7": "loadSource",
-  "8": "expected",
-  "9": "codex.ts"
+  "4": "scan.ts",
+  "5": "mutate.ts",
+  "6": "expected",
+  "7": "permissions.ts",
+  "8": "Project Instructions",
+  "9": "cursor.ts"
 }
