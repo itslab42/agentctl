@@ -18,6 +18,7 @@ import {
 } from "./instructions";
 import { presets, renderPreset, listPresetNames } from "./presets";
 import { evaluate, formatForRuntime } from "./explain";
+import { audit, generateTestCommands, AuditResult, AuditSummary, AuditOptions } from "./audit";
 
 interface GeneratedFile {
   path: string;
@@ -595,6 +596,179 @@ async function runExplain(root: string, args: string[]): Promise<void> {
   console.log("");
 }
 
+async function runAudit(root: string, args: string[]): Promise<void> {
+  const auditArgs = args.slice(args.indexOf("audit") + 1);
+  const jsonOutput = auditArgs.includes("--json");
+  const verbose = auditArgs.includes("--verbose");
+  const failOnAdvisory = auditArgs.includes("--fail-on-advisory");
+  const commandsIdx = auditArgs.indexOf("--commands");
+  const commandsFile = commandsIdx !== -1 ? auditArgs[commandsIdx + 1] : undefined;
+
+  let source: Awaited<ReturnType<typeof loadSource>>;
+  try {
+    source = await loadSource(root);
+  } catch (error) {
+    console.error(`❌ ${(error as Error).message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  // Determine enabled runtimes
+  const runtimeNames = ["claude", "codex", "cursor", "kiro", "opencode"] as const;
+  const enabledRuntimes = runtimeNames.filter(
+    (r) => source.config.runtimes[r as keyof typeof source.config.runtimes].enabled
+  );
+
+  // Load custom commands if provided
+  let customCommands: string[] | undefined;
+  if (commandsFile) {
+    try {
+      const content = await readFile(resolve(root, commandsFile), "utf8");
+      customCommands = content
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !line.startsWith("#"));
+    } catch (error) {
+      console.error(`❌ Cannot read commands file: ${(error as Error).message}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  const summary: AuditSummary = audit(source.permissions, [...enabledRuntimes], {
+    commands: customCommands,
+    failOnAdvisory
+  });
+
+  // Handle skip cases
+  if (summary.skipped) {
+    if (jsonOutput) {
+      console.log(JSON.stringify({ skipped: summary.skipped }, null, 2));
+    } else {
+      console.log(`\n${summary.skipped}\n`);
+    }
+    return;
+  }
+
+  if (jsonOutput) {
+    const output = {
+      tested: summary.tested,
+      consistent: summary.consistent,
+      divergences: summary.divergences.map((d) => ({
+        command: d.command,
+        severity: d.severity,
+        decisions: Object.fromEntries(
+          d.decisions.map((rd) => [rd.runtime, { decision: rd.decision, pattern: rd.pattern }])
+        )
+      }))
+    };
+    console.log(JSON.stringify(output, null, 2));
+    if (summary.divergences.length > 0) process.exitCode = 1;
+    return;
+  }
+
+  // Human-readable output
+  console.log(`\nCross-runtime permission audit`);
+  console.log(`${"━".repeat(30)}\n`);
+  console.log(
+    `Testing ${summary.tested} patterns against ${enabledRuntimes.length} enabled runtimes...\n`
+  );
+
+  if (verbose) {
+    // Show all results
+    for (const result of getAllResults(source.permissions, [...enabledRuntimes], {
+      commands: customCommands,
+      failOnAdvisory
+    })) {
+      if (result.consistent) {
+        const decision = result.decisions[0].decision.toUpperCase();
+        console.log(
+          color.green(`✓`) +
+            ` "${result.command}" ${color.dim(".".repeat(Math.max(1, 40 - result.command.length)))} ${decision} across all runtimes`
+        );
+      } else {
+        printDivergence(result);
+      }
+    }
+  } else {
+    // Show only divergences
+    if (summary.divergences.length === 0) {
+      console.log(color.green(`✓ All ${summary.tested} commands are consistent across runtimes.`));
+    } else {
+      for (const divergence of summary.divergences) {
+        printDivergence(divergence);
+      }
+    }
+  }
+
+  console.log(
+    `\nSummary: ${summary.consistent}/${summary.tested} consistent${summary.divergences.length > 0 ? `, ${color.red(`${summary.divergences.length} divergence${summary.divergences.length > 1 ? "s" : ""} found`)}` : ""}.`
+  );
+
+  if (summary.divergences.length > 0) process.exitCode = 1;
+}
+
+function printDivergence(result: AuditResult): void {
+  const severityLabel =
+    result.severity === "critical"
+      ? color.red("CRITICAL")
+      : result.severity === "warning"
+        ? color.cyan("WARNING")
+        : color.dim("INFO");
+  console.log(`${color.red("✗")} "${result.command}"  ${severityLabel}`);
+  for (const d of result.decisions) {
+    const label = d.runtime.charAt(0).toUpperCase() + d.runtime.slice(1);
+    let decisionStr: string;
+    if (d.decision === "allow") {
+      decisionStr = color.green("ALLOW");
+    } else if (d.decision === "deny") {
+      decisionStr = color.red("DENY");
+    } else {
+      decisionStr = color.cyan("ASK");
+    }
+    console.log(`    ${label.padEnd(10)} ${decisionStr}  (${d.reason})`);
+  }
+}
+
+/**
+ * Helper to get all individual audit results for verbose mode.
+ */
+function getAllResults(
+  permissions: Parameters<typeof audit>[0],
+  runtimes: string[],
+  options: AuditOptions
+): AuditResult[] {
+  const commands = options.commands ?? generateTestCommands(permissions);
+  const results: AuditResult[] = [];
+  for (const command of commands) {
+    const core = evaluate(command, permissions);
+    const decisions = runtimes.map((runtime) => {
+      const formatted = formatForRuntime(core, runtime);
+      return {
+        runtime,
+        decision: formatted.decision,
+        pattern: formatted.matchedPattern ?? null,
+        reason: formatted.reason
+      };
+    });
+    const failOnAdvisory = options.failOnAdvisory ?? false;
+    const consistent =
+      decisions.length <= 1 ||
+      (() => {
+        if (failOnAdvisory) {
+          const first = decisions[0].decision;
+          return decisions.every((d) => d.decision === first);
+        }
+        const nonCursor = decisions.filter((d) => d.runtime !== "cursor");
+        if (nonCursor.length <= 1) return true;
+        const first = nonCursor[0].decision;
+        return nonCursor.every((d) => d.decision === first);
+      })();
+    results.push({ command, decisions, consistent });
+  }
+  return results;
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes("--color")) setForceColor(true);
@@ -622,11 +796,12 @@ async function main(): Promise<void> {
       "deny",
       "add",
       "remove",
-      "explain"
+      "explain",
+      "audit"
     ].includes(command)
   ) {
     console.error(
-      "Usage: agentctl <init|sync|check|validate|diff|status|scan|allow|deny|add|remove|explain|--version>"
+      "Usage: agentctl <init|sync|check|validate|diff|status|scan|allow|deny|add|remove|explain|audit|--version>"
     );
     process.exitCode = 2;
     return;
@@ -646,6 +821,10 @@ async function main(): Promise<void> {
   }
   if (command === "explain") {
     await runExplain(root, args);
+    return;
+  }
+  if (command === "audit") {
+    await runAudit(root, args);
     return;
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
