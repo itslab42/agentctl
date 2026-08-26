@@ -1,6 +1,6 @@
 {
   "name": "@lab42/agentctl",
-  "version": "0.3.3-rc.1",
+  "version": "0.3.4-rc.1",
   "description": "Single source of truth for AI coding-agent configuration",
   "keywords": [
     "agent",
