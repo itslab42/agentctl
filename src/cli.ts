@@ -473,6 +473,64 @@ async function runMutate(root: string, command: string): Promise<void> {
   }
 }
 
+async function runWatch(root: string): Promise<void> {
+  const { watch } = await import("node:fs");
+  const aiDir = resolve(root, ".ai");
+  if (!existsSync(aiDir)) {
+    console.error("❌ .ai/ directory not found. Run agentctl init first.");
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log("👀 Watching .ai/ for changes... (Ctrl+C to stop)\n");
+
+  // Perform initial sync
+  await doSync(root);
+
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const watcher = watch(aiDir, { recursive: true }, (_event, filename) => {
+    // Ignore temp files from editors
+    if (!filename || /[~.]swp$|\.tmp$|~$/.test(filename)) return;
+    // Only react to yaml/md files
+    if (!/\.(yaml|yml|md)$/.test(filename)) return;
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const timestamp = new Date().toLocaleTimeString("en-US", { hour12: false });
+      console.log(`[${timestamp}] .ai/${filename} changed → syncing...`);
+      void doSync(root);
+    }, 100);
+  });
+
+  // Clean exit on SIGINT
+  process.on("SIGINT", () => {
+    watcher.close();
+    console.log("\n\n👋 Watch mode stopped.");
+    process.exit(0);
+  });
+
+  // Keep the process alive
+  await new Promise(() => {});
+}
+
+async function doSync(root: string): Promise<void> {
+  try {
+    const source = await loadSource(root);
+    const files = expected(root, source);
+    let count = 0;
+    for (const file of files) {
+      await mkdir(resolve(file.path, ".."), { recursive: true });
+      await writeFile(file.path, file.content, "utf8");
+      if (file.executable) await chmod(file.path, 0o755);
+      count++;
+    }
+    console.log(`✓ ${count} file(s) updated`);
+  } catch (error) {
+    console.error(`❌ Sync error: ${(error as Error).message}`);
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes("--color")) setForceColor(true);
@@ -566,6 +624,11 @@ async function main(): Promise<void> {
   }
 
   if (command === "sync") {
+    const watchMode = process.argv.slice(2).includes("--watch");
+    if (watchMode) {
+      await runWatch(root);
+      return;
+    }
     console.log("🤖 Syncing agent configurations...\n");
     for (const file of files) {
       await mkdir(resolve(file.path, ".."), { recursive: true });
