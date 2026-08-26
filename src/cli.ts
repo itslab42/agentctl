@@ -6,11 +6,7 @@ import { loadSource } from "./config";
 import { unifiedDiff, colorize } from "./diff";
 import { color, setForceColor } from "./color";
 import { addPattern, mutatePermissions, removePattern } from "./mutate";
-import { renderClaude } from "./adapters/claude";
-import { renderOpenCode } from "./adapters/opencode";
-import { renderCodexConfig, renderCodexHook } from "./adapters/codex";
-import { renderKiro, renderKiroMcp } from "./adapters/kiro";
-import { renderCursorRule, renderCursorMcp } from "./adapters/cursor";
+import { adapters } from "./adapter";
 import { scan } from "./scan";
 import {
   resolveForRuntime,
@@ -33,60 +29,24 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
   if (!source.config.sync.permissions) return [];
   const files: GeneratedFile[] = [];
   const mcpEnabled = source.config.sync.mcp && source.mcp;
-  if (source.config.runtimes.claude.enabled)
-    files.push({
-      runtime: "Claude",
-      path: resolve(root, ".claude/settings.json"),
-      content: renderClaude(
-        source.permissions,
-        source.config.claude,
-        mcpEnabled ? source.mcp : undefined
-      )
+
+  for (const adapter of adapters) {
+    const runtimeName = adapter.name as keyof typeof source.config.runtimes;
+    if (!source.config.runtimes[runtimeName].enabled) continue;
+
+    const rendered = adapter.render(source.permissions, {
+      claude: runtimeName === "claude" ? source.config.claude : undefined,
+      mcp: mcpEnabled ? source.mcp : undefined
     });
-  if (source.config.runtimes.opencode.enabled)
-    files.push({
-      runtime: "OpenCode",
-      path: resolve(root, ".opencode/opencode.json"),
-      content: renderOpenCode(source.permissions)
-    });
-  if (source.config.runtimes.codex.enabled) {
-    files.push({
-      runtime: "Codex",
-      path: resolve(root, ".codex/config.toml"),
-      content: renderCodexConfig(source.permissions)
-    });
-    files.push({
-      runtime: "Codex",
-      path: resolve(root, ".codex/hooks/permission-policy.py"),
-      content: renderCodexHook(source.permissions),
-      executable: true
-    });
-  }
-  if (source.config.runtimes.cursor.enabled) {
-    files.push({
-      runtime: "Cursor",
-      path: resolve(root, ".cursor/rules/agentctl-permissions/RULE.md"),
-      content: renderCursorRule(source.permissions)
-    });
-    if (mcpEnabled)
+
+    for (const file of rendered) {
       files.push({
-        runtime: "Cursor",
-        path: resolve(root, ".cursor/mcp.json"),
-        content: renderCursorMcp(source.mcp!)
+        runtime: adapter.name.charAt(0).toUpperCase() + adapter.name.slice(1),
+        path: resolve(root, file.path),
+        content: file.content,
+        executable: file.executable
       });
-  }
-  if (source.config.runtimes.kiro.enabled) {
-    files.push({
-      runtime: "Kiro",
-      path: resolve(root, ".kiro/settings/permissions.yaml"),
-      content: renderKiro(source.permissions)
-    });
-    if (mcpEnabled)
-      files.push({
-        runtime: "Kiro",
-        path: resolve(root, ".kiro/mcp.json"),
-        content: renderKiroMcp(source.mcp!)
-      });
+    }
   }
 
   // --- Instruction files ---
@@ -594,15 +554,15 @@ async function main(): Promise<void> {
   const files = expected(root, source);
 
   if (command === "status") {
-    const allRuntimes = ["claude", "codex", "cursor", "kiro", "opencode"] as const;
     let drift = false;
-    for (const name of allRuntimes) {
+    for (const adapter of adapters) {
+      const name = adapter.name as keyof typeof source.config.runtimes;
       const enabled = source.config.runtimes[name].enabled;
       if (!enabled) {
-        console.log(color.dim(`${name.padEnd(10)} – not configured`));
+        console.log(color.dim(`${adapter.name.padEnd(10)} – not configured`));
         continue;
       }
-      const runtimeFiles = files.filter((f) => f.runtime.toLowerCase() === name);
+      const runtimeFiles = files.filter((f) => f.runtime.toLowerCase() === adapter.name);
       const diffs: string[] = [];
       for (const file of runtimeFiles) {
         const before = await current(file.path);
@@ -614,9 +574,9 @@ async function main(): Promise<void> {
       }
       if (diffs.length > 0) {
         drift = true;
-        console.log(color.red(`${name.padEnd(10)} ✗ out of sync (${diffs.join(", ")})`));
+        console.log(color.red(`${adapter.name.padEnd(10)} ✗ out of sync (${diffs.join(", ")})`));
       } else {
-        console.log(color.green(`${name.padEnd(10)} ✓ in sync`));
+        console.log(color.green(`${adapter.name.padEnd(10)} ✓ in sync`));
       }
     }
     if (drift) process.exitCode = 1;
