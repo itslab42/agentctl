@@ -1,8 +1,11 @@
-import { Permissions, GENERATED_MARKER } from "../permissions";
+import { Permissions, PermissionValue, GENERATED_MARKER } from "../permissions";
 import { ClaudeSettings, claudeDefaults } from "../config";
 import { McpConfig } from "../mcp";
+import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
 
-export function renderClaude(
+const PATHS = [".claude/settings.json"];
+
+function render(
   permissions: Permissions,
   settings: ClaudeSettings = claudeDefaults,
   mcp?: McpConfig
@@ -41,4 +44,78 @@ export function renderClaude(
     value.mcpServers = mcpServers;
   }
   return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function parse(raw: string): DetectedRuntime {
+  const parsed = JSON.parse(raw) as {
+    permissions?: { allow?: string[]; deny?: string[] };
+  };
+  const perms = parsed.permissions ?? {};
+  const allowList = perms.allow ?? [];
+  const denyList = perms.deny ?? [];
+
+  const allow = allowList
+    .filter((p: string) => p.startsWith("Bash(") && p.endsWith(")"))
+    .map((p: string) => p.slice(5, -1));
+  const deny = denyList
+    .filter((p: string) => p.startsWith("Bash(") && p.endsWith(")"))
+    .map((p: string) => p.slice(5, -1));
+
+  const filesystem: { edit?: PermissionValue; write?: PermissionValue } = {};
+  if (allowList.includes("Edit")) {
+    filesystem.edit = "allow";
+  } else if (denyList.includes("Edit")) {
+    filesystem.edit = "deny";
+  } else {
+    filesystem.edit = "ask";
+  }
+  if (allowList.includes("Write")) {
+    filesystem.write = "allow";
+  } else if (denyList.includes("Write")) {
+    filesystem.write = "deny";
+  } else {
+    filesystem.write = "ask";
+  }
+
+  const shell: PermissionValue = "ask";
+
+  return {
+    name: "claude",
+    path: PATHS[0],
+    shell,
+    allowPatterns: allow,
+    denyPatterns: deny,
+    filesystem
+  };
+}
+
+export const claudeAdapter: Adapter = {
+  name: "claude",
+  paths: PATHS,
+
+  render(permissions: Permissions, options?: AdapterOptions): GeneratedFile[] {
+    return [
+      {
+        path: PATHS[0],
+        content: render(permissions, options?.claude ?? claudeDefaults, options?.mcp)
+      }
+    ];
+  },
+
+  parse(raw: string, _path: string): DetectedRuntime {
+    return parse(raw);
+  },
+
+  owns(path: string): boolean {
+    return PATHS.includes(path);
+  }
+};
+
+/** @deprecated Use claudeAdapter.render() instead */
+export function renderClaude(
+  permissions: Permissions,
+  settings: ClaudeSettings = claudeDefaults,
+  mcp?: McpConfig
+): string {
+  return render(permissions, settings, mcp);
 }
