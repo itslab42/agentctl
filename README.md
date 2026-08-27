@@ -5,7 +5,13 @@
 [![license](https://img.shields.io/npm/l/@lab42/agentctl)](./LICENSE)
 [![Socket Badge](https://badge.socket.dev/npm/package/@lab42/agentctl)](https://badge.socket.dev/npm/package/@lab42/agentctl)
 
-Single source of truth for AI coding-agent permissions. Define once in `.ai/`, generate configs for **Claude Code**, **Codex CLI**, **OpenCode**, **Cursor**, and **Kiro**.
+**Define your AI coding-agent permissions once. Enforce them everywhere.**
+
+`agentctl` is the single source of truth for what your AI coding agents are _allowed to do_. Declare shell and filesystem rules once in `.ai/` — with `deny_over_allow` precedence — and generate native configs for **Claude Code**, **Codex CLI**, **OpenCode**, **Cursor**, and **Kiro**. Deterministic, one-way, and enforceable in CI.
+
+Unlike instruction-sync tools that only distribute prompts and rules, `agentctl` governs the guardrails: destructive shell, git, and API calls stay blocked across every runtime, from one policy.
+
+🌐 **[itslab42.github.io/agentctl](https://itslab42.github.io/agentctl/)** · 📦 **[npm](https://www.npmjs.com/package/@lab42/agentctl)**
 
 ## Quick Start
 
