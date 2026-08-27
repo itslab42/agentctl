@@ -1,0 +1,38 @@
+title: agentctl
+description: >-
+  Single source of truth for AI coding-agent configuration. Define permissions,
+  MCP servers, and instructions once in .ai/, generate configs for Claude Code,
+  Codex CLI, OpenCode, Cursor, and Kiro.
+
+# Rendered by GitHub Pages (no local build step needed).
+# Uses the just-the-docs theme via remote_theme.
+remote_theme: just-the-docs/just-the-docs
+
+# GitHub Pages plugins (allowlisted by Pages)
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+# just-the-docs options
+search_enabled: true
+color_scheme: dark
+heading_anchors: true
+
+aux_links:
+  "GitHub":
+    - "https://github.com/itslab42/agentctl"
+  "npm":
+    - "https://www.npmjs.com/package/@lab42/agentctl"
+
+aux_links_new_tab: true
+
+# Footer
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Exclude repo noise from the built site
+exclude:
+  - .pr-body.md
+  - Gemfile
+  - Gemfile.lock
+  - README.md
