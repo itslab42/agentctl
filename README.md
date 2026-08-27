@@ -85,6 +85,20 @@ opencode   – not configured
 
 Exits 0 if all in sync, 1 if drift detected — useful for CI.
 
+## CI (GitHub Action)
+
+Use [`agentctl-action`](https://github.com/itslab42/agentctl-action) to verify configs stay in sync on every push and PR. It runs `agentctl` in CI and fails the build when generated files have drifted from `.ai/`.
+
+```yaml
+# .github/workflows/ci.yaml
+- uses: actions/checkout@v4
+- uses: itslab42/agentctl-action@v1
+  with:
+    command: check # check (default), status, or audit
+```
+
+Inputs: `command`, `version`, `fail-on-advisory` (for `audit`), `working-directory`, `node-version`. See the [action README](https://github.com/itslab42/agentctl-action) for details.
+
 ## MCP Configuration
 
 Declare MCP servers once in `.ai/mcp.yaml`:
