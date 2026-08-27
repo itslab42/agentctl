@@ -72,13 +72,7 @@
       }
       body {
         font-feature-settings: "ss01", "cv01";
-        /* page-wide grid lines — subtle, always visible behind content */
         background-color: var(--color-bg);
-        background-image:
-          linear-gradient(var(--color-border-1) 1px, transparent 1px),
-          linear-gradient(90deg, var(--color-border-1) 1px, transparent 1px);
-        background-size: 64px 64px;
-        background-position: center top;
       }
       h1,
       h2,
@@ -101,6 +95,31 @@
         background-clip: text;
         color: transparent;
       }
+      /* Next.js-style frame: two vertical rule lines down the edges of the
+         central 1080px content lane — full page height, behind content.
+         Not a full-page grid; just the container borders. */
+      .frame-rules {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+      }
+      .frame-rules::before,
+      .frame-rules::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--color-border-1);
+      }
+      /* lane is 1080px wide, centered; keep rules inside the viewport on small screens */
+      .frame-rules::before {
+        left: max(1.5rem, 50% - 540px);
+      }
+      .frame-rules::after {
+        right: max(1.5rem, 50% - 540px);
+      }
       .reveal {
         opacity: 0;
         transform: translateY(16px);
@@ -116,6 +135,9 @@
   </head>
 
   <body class="bg-bg text-ink font-sans antialiased overflow-x-hidden leading-relaxed">
+    <!-- Next.js-style container edge rules (vertical lines framing the content lane) -->
+    <div class="frame-rules" aria-hidden="true"></div>
+
     <!-- NAV -->
     <nav class="sticky top-0 z-50 border-b border-border-1 bg-bg/70 backdrop-blur-md">
       <div class="mx-auto flex h-[60px] max-w-[1080px] items-center justify-between px-6">
