@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/itslab42/agentctl/main/schemas/permissions.schema.json",
+  "title": "AgentCtl Permissions",
+  "description": "Runtime-neutral permission definitions for agentctl. Lives at .ai/permissions.yaml. Uses deny-over-allow precedence.",
+  "type": "object",
+  "required": ["policy", "filesystem", "shell"],
+  "additionalProperties": false,
+  "properties": {
+    "policy": {
+      "type": "object",
+      "description": "Precedence policy for resolving conflicting rules.",
+      "required": ["precedence"],
+      "additionalProperties": false,
+      "properties": {
+        "precedence": {
+          "const": "deny_over_allow",
+          "description": "Deny rules always win over allow rules. This is the only supported precedence."
+        }
+      }
+    },
+    "filesystem": {
+      "type": "object",
+      "description": "Filesystem edit and write permissions.",
+      "required": ["edit", "write"],
+      "additionalProperties": false,
+      "properties": {
+        "edit": {
+          "$ref": "#/definitions/permissionValue",
+          "description": "Permission for editing existing files."
+        },
+        "write": {
+          "$ref": "#/definitions/permissionValue",
+          "description": "Permission for creating/writing files."
+        }
+      }
+    },
+    "shell": {
+      "type": "object",
+      "description": "Shell command permissions.",
+      "required": ["default"],
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "$ref": "#/definitions/permissionValue",
+          "description": "Default permission for shell commands not matched by allow/deny."
+        },
+        "allow": {
+          "type": "array",
+          "description": "Glob patterns of shell commands to allow.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "deny": {
+          "type": "array",
+          "description": "Glob patterns of shell commands to deny. Deny wins over allow.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  },
+  "definitions": {
+    "permissionValue": {
+      "type": "string",
+      "enum": ["allow", "ask", "deny"],
+      "description": "Permission decision: allow, ask, or deny."
+    }
+  }
+}

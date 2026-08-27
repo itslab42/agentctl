@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/itslab42/agentctl/main/schemas/config.schema.json
 project:
   name: __PROJECT_NAME__
 

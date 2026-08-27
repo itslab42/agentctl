@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/itslab42/agentctl/main/schemas/config.schema.json",
+  "title": "AgentCtl Config",
+  "description": "Configuration for agentctl — the single source of truth for AI coding-agent settings. Lives at .ai/config.yaml.",
+  "type": "object",
+  "required": ["project", "sync", "files"],
+  "additionalProperties": false,
+  "properties": {
+    "project": {
+      "type": "object",
+      "description": "Project metadata used in generated file headers.",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Project name used in generated file headers."
+        }
+      }
+    },
+    "runtimes": {
+      "type": "object",
+      "description": "Which AI coding-agent runtimes to generate configuration for. Any runtime omitted here defaults to disabled.",
+      "additionalProperties": false,
+      "properties": {
+        "claude": { "$ref": "#/definitions/runtime" },
+        "codex": { "$ref": "#/definitions/runtime" },
+        "cursor": { "$ref": "#/definitions/runtime" },
+        "kiro": { "$ref": "#/definitions/runtime" },
+        "opencode": { "$ref": "#/definitions/runtime" }
+      }
+    },
+    "claude": {
+      "type": "object",
+      "description": "Optional Claude Code specific settings. Omitted fields fall back to defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "alwaysThinkingEnabled": {
+          "type": "boolean",
+          "description": "Enable Claude's always-on thinking mode. Default: true."
+        },
+        "cleanupPeriodDays": {
+          "type": "number",
+          "description": "Number of days before Claude cleans up chat transcripts. Default: 90."
+        },
+        "disableTelemetry": {
+          "type": "boolean",
+          "description": "Disable Claude Code telemetry. Default: true."
+        }
+      }
+    },
+    "sync": {
+      "type": "object",
+      "description": "Which categories of configuration agentctl sync should generate.",
+      "required": ["permissions"],
+      "additionalProperties": false,
+      "properties": {
+        "permissions": {
+          "type": "boolean",
+          "description": "Generate runtime permission files from .ai/permissions.yaml."
+        },
+        "mcp": {
+          "type": "boolean",
+          "description": "Generate runtime MCP server configs from .ai/mcp.yaml. Default: false."
+        },
+        "instructions": {
+          "type": "boolean",
+          "description": "Generate runtime instruction files from .ai/instructions.md. Default: false."
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "description": "Paths to the runtime-neutral source files.",
+      "required": ["permissions"],
+      "additionalProperties": false,
+      "properties": {
+        "permissions": {
+          "type": "string",
+          "description": "Path to the permissions source file (e.g. .ai/permissions.yaml)."
+        },
+        "mcp": {
+          "type": "string",
+          "description": "Path to the MCP source file (e.g. .ai/mcp.yaml)."
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Path to the instructions source file (e.g. .ai/instructions.md)."
+        }
+      }
+    }
+  },
+  "definitions": {
+    "runtime": {
+      "type": "object",
+      "description": "Runtime toggle.",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether agentctl generates configuration for this runtime."
+        }
+      }
+    }
+  }
+}
