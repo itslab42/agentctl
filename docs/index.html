@@ -39,24 +39,27 @@
         /* Palette borrowed from Graphify: warm charcoal surfaces, cream ink,
            terracotta brand, graph-green accent — deliberately not the usual
            cold AI blue/purple. */
-        --color-bg: #14110e;
-        --color-bg-soft: #191512;
-        --color-panel: #1c1815;
-        --color-panel-2: #262019;
-        --color-border-1: #ffffff14;
-        --color-border-2: #ffffff24;
-        --color-ink: #f7f3ec;
-        --color-muted: #a89e8f;
-        --color-dim: #6f675b;
-        --color-brand: #cf7a52;
-        --color-brand-2: #e8cbb8;
-        --color-brand-ink: #f8f4ef;
-        --color-good: #2bc0a8;
-        --color-bad: #e0745a;
+        /* Palette borrowed from runinfra.ai: warm near-black surfaces, warm
+           off-white ink, and a lime/chartreuse-green accent — deliberately not
+           the usual cold AI blue/purple, and no orange. Fonts stay Graphify's. */
+        --color-bg: #0f0f0e;
+        --color-bg-soft: #141413;
+        --color-panel: #1a1a18;
+        --color-panel-2: #222220;
+        --color-border-1: #f0efe218;
+        --color-border-2: #f0efe22e;
+        --color-ink: #f0efe2;
+        --color-muted: #bbb9b1;
+        --color-dim: #6e6d64;
+        --color-brand: #76b900;
+        --color-brand-2: #a3e635;
+        --color-brand-ink: #0f0f0e;
+        --color-good: #8fd400;
+        --color-bad: #efa4a4;
         --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
         --font-display: "Bricolage Grotesque", "Geist", ui-sans-serif, system-ui, sans-serif;
         --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-        --radius: 0.75rem;
+        --radius: 0.375rem;
       }
 
       /* small custom bits Tailwind utilities don't cover cleanly */
@@ -69,6 +72,13 @@
       }
       body {
         font-feature-settings: "ss01", "cv01";
+        /* page-wide grid lines — subtle, always visible behind content */
+        background-color: var(--color-bg);
+        background-image:
+          linear-gradient(var(--color-border-1) 1px, transparent 1px),
+          linear-gradient(90deg, var(--color-border-1) 1px, transparent 1px);
+        background-size: 64px 64px;
+        background-position: center top;
       }
       h1,
       h2,
@@ -76,16 +86,17 @@
         font-family: var(--font-display);
         letter-spacing: -0.015em;
       }
+      /* denser, brighter grid used as a hero flourish (masked to fade out) */
       .grid-bg {
         background-image:
-          linear-gradient(var(--color-border-1) 1px, transparent 1px),
-          linear-gradient(90deg, var(--color-border-1) 1px, transparent 1px);
-        background-size: 46px 46px;
+          linear-gradient(var(--color-border-2) 1px, transparent 1px),
+          linear-gradient(90deg, var(--color-border-2) 1px, transparent 1px);
+        background-size: 32px 32px;
         -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 20%, transparent 75%);
         mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 20%, transparent 75%);
       }
       .text-grad {
-        background: linear-gradient(120deg, var(--color-brand), var(--color-good));
+        background: linear-gradient(120deg, var(--color-brand), var(--color-brand-2));
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
@@ -124,7 +135,7 @@
           >
           <a
             href="https://github.com/itslab42/agentctl"
-            class="rounded-lg border border-border-2 px-3.5 py-1.5 font-semibold transition-colors hover:border-brand hover:bg-brand/10"
+            class="rounded border border-border-2 px-3.5 py-1.5 font-semibold transition-colors hover:border-brand hover:bg-brand/10"
             >GitHub ↗</a
           >
         </div>
@@ -136,7 +147,7 @@
       <div
         class="pointer-events-none absolute -top-[240px] left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full blur-2xl"
         style="
-          background: radial-gradient(ellipse at center, rgba(207, 122, 82, 0.18), transparent 60%);
+          background: radial-gradient(ellipse at center, rgba(118, 185, 0, 0.14), transparent 60%);
         "
       ></div>
       <div class="grid-bg pointer-events-none absolute inset-0 opacity-35"></div>
@@ -164,13 +175,13 @@
         <div class="flex flex-wrap justify-center gap-3.5">
           <a
             href="#how"
-            class="inline-flex items-center gap-2 rounded-xl bg-brand px-[22px] py-3 text-[15px] font-semibold text-brand-ink shadow-[0_8px_30px_rgba(207,122,82,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_38px_rgba(207,122,82,0.4)]"
+            class="inline-flex items-center gap-2 rounded-md bg-brand px-[22px] py-3 text-[15px] font-semibold text-brand-ink shadow-[0_8px_30px_rgba(118,185,0,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_38px_rgba(118,185,0,0.32)]"
           >
             Get started →</a
           >
           <a
             href="https://www.npmjs.com/package/@lab42/agentctl"
-            class="inline-flex items-center gap-2 rounded-xl border border-border-2 bg-panel px-[22px] py-3 font-mono text-[15px] font-semibold transition hover:border-brand hover:bg-brand/10"
+            class="inline-flex items-center gap-2 rounded-md border border-border-2 bg-panel px-[22px] py-3 font-mono text-[15px] font-semibold transition hover:border-brand hover:bg-brand/10"
           >
             npx @lab42/agentctl</a
           >
@@ -178,7 +189,7 @@
 
         <!-- terminal -->
         <div
-          class="mx-auto mt-[52px] max-w-[760px] overflow-hidden rounded-[14px] border border-border-1 bg-panel text-left shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+          class="mx-auto mt-[52px] max-w-[760px] overflow-hidden rounded-md border border-border-1 bg-panel text-left shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
         >
           <div class="flex items-center gap-2 border-b border-border-1 bg-panel-2 px-4 py-3">
             <span class="h-[11px] w-[11px] rounded-full bg-[#ff5f57]"></span>
@@ -217,23 +228,23 @@
         </p>
         <div class="flex flex-wrap justify-center gap-x-7 gap-y-3.5">
           <span
-            class="rounded-lg border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
             >Claude Code</span
           >
           <span
-            class="rounded-lg border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
             >Codex CLI</span
           >
           <span
-            class="rounded-lg border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
             >OpenCode</span
           >
           <span
-            class="rounded-lg border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
             >Cursor</span
           >
           <span
-            class="rounded-lg border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
             >Kiro</span
           >
         </div>
@@ -255,7 +266,7 @@
           </p>
         </div>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
-          <div class="reveal rounded-[14px] border border-border-1 bg-panel p-[26px]">
+          <div class="reveal rounded-md border border-border-1 bg-panel p-[26px]">
             <div class="mb-3.5 font-mono text-[13px] text-brand">STEP 01</div>
             <h3 class="mb-2 text-lg tracking-tight">Declare</h3>
             <p class="text-[14.5px] text-muted">
@@ -270,7 +281,7 @@
               precedence baked in.
             </p>
           </div>
-          <div class="reveal rounded-[14px] border border-border-1 bg-panel p-[26px]">
+          <div class="reveal rounded-md border border-border-1 bg-panel p-[26px]">
             <div class="mb-3.5 font-mono text-[13px] text-brand">STEP 02</div>
             <h3 class="mb-2 text-lg tracking-tight">Sync</h3>
             <p class="text-[14.5px] text-muted">
@@ -286,7 +297,7 @@
               >, hooks, and rules for each enabled runtime.
             </p>
           </div>
-          <div class="reveal rounded-[14px] border border-border-1 bg-panel p-[26px]">
+          <div class="reveal rounded-md border border-border-1 bg-panel p-[26px]">
             <div class="mb-3.5 font-mono text-[13px] text-brand">STEP 03</div>
             <h3 class="mb-2 text-lg tracking-tight">Enforce</h3>
             <p class="text-[14.5px] text-muted">
@@ -306,9 +317,7 @@
     <section class="py-[84px]">
       <div class="mx-auto max-w-[1080px] px-6">
         <div class="reveal grid grid-cols-1 items-center gap-7 md:grid-cols-[1fr_auto_1fr]">
-          <div
-            class="rounded-[14px] border border-border-1 bg-panel p-[22px] font-mono text-[13px]"
-          >
+          <div class="rounded-md border border-border-1 bg-panel p-[22px] font-mono text-[13px]">
             <div class="mb-3 font-sans font-semibold text-ink">
               Source of truth · <span class="font-mono">.ai/</span>
             </div>
@@ -327,9 +336,7 @@
             <span class="block text-[22px] max-md:rotate-90">→</span>
             agentctl sync
           </div>
-          <div
-            class="rounded-[14px] border border-border-1 bg-panel p-[22px] font-mono text-[13px]"
-          >
+          <div class="rounded-md border border-border-1 bg-panel p-[22px] font-mono text-[13px]">
             <div class="mb-3 font-sans font-semibold text-ink">Generated · native formats</div>
             <div class="py-0.5 text-muted">.claude/settings.json</div>
             <div class="py-0.5 text-muted">.codex/config.toml + hooks/</div>
@@ -354,7 +361,7 @@
         </div>
         <div class="grid grid-cols-1 gap-4.5 md:grid-cols-2">
           <div
-            class="reveal rounded-xl border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
           >
             <span class="mb-3.5 block text-[22px]">🛡️</span>
             <h3 class="mb-2 text-lg tracking-tight">Deny-over-allow by default</h3>
@@ -364,7 +371,7 @@
             </p>
           </div>
           <div
-            class="reveal rounded-xl border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
           >
             <span class="mb-3.5 block text-[22px]">🎯</span>
             <h3 class="mb-2 text-lg tracking-tight">Deterministic, one-way</h3>
@@ -375,7 +382,7 @@
             </p>
           </div>
           <div
-            class="reveal rounded-xl border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
           >
             <span class="mb-3.5 block text-[22px]">🔁</span>
             <h3 class="mb-2 text-lg tracking-tight">Drift detection for CI</h3>
@@ -385,7 +392,7 @@
             </p>
           </div>
           <div
-            class="reveal rounded-xl border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
           >
             <span class="mb-3.5 block text-[22px]">📥</span>
             <h3 class="mb-2 text-lg tracking-tight">Reverse-import existing setups</h3>
@@ -397,7 +404,7 @@
             </p>
           </div>
           <div
-            class="reveal rounded-xl border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
           >
             <span class="mb-3.5 block text-[22px]">🔌</span>
             <h3 class="mb-2 text-lg tracking-tight">MCP servers, declared once</h3>
@@ -408,7 +415,7 @@
             </p>
           </div>
           <div
-            class="reveal rounded-xl border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
           >
             <span class="mb-3.5 block text-[22px]">🧩</span>
             <h3 class="mb-2 text-lg tracking-tight">Adapter architecture</h3>
@@ -438,7 +445,7 @@
         </div>
         <div class="reveal overflow-x-auto">
           <table
-            class="w-full border-collapse overflow-hidden rounded-[14px] border border-border-1 text-[14.5px]"
+            class="w-full border-collapse overflow-hidden rounded-md border border-border-1 text-[14.5px]"
           >
             <thead>
               <tr class="bg-panel-2">
@@ -517,11 +524,11 @@
     <section class="border-t border-border-1 py-[84px] text-center">
       <div class="mx-auto max-w-[1080px] px-6">
         <div
-          class="reveal relative overflow-hidden rounded-[20px] border border-border-2 bg-gradient-to-b from-panel-2 to-panel px-8 py-14"
+          class="reveal relative overflow-hidden rounded-lg border border-border-2 bg-gradient-to-b from-panel-2 to-panel px-8 py-14"
         >
           <div
             class="pointer-events-none absolute -top-[120px] left-1/2 h-[300px] w-[500px] -translate-x-1/2"
-            style="background: radial-gradient(ellipse, rgba(207, 122, 82, 0.18), transparent 65%)"
+            style="background: radial-gradient(ellipse, rgba(118, 185, 0, 0.14), transparent 65%)"
           ></div>
           <h2 class="relative text-[clamp(28px,4vw,40px)] font-extrabold tracking-tight">
             One source of truth. Every agent.
@@ -533,12 +540,12 @@
           <div class="relative flex flex-wrap justify-center gap-3.5">
             <a
               href="https://github.com/itslab42/agentctl"
-              class="inline-flex items-center gap-2 rounded-xl bg-brand px-[22px] py-3 text-[15px] font-semibold text-brand-ink shadow-[0_8px_30px_rgba(207,122,82,0.28)] transition hover:-translate-y-0.5"
+              class="inline-flex items-center gap-2 rounded-md bg-brand px-[22px] py-3 text-[15px] font-semibold text-brand-ink shadow-[0_8px_30px_rgba(118,185,0,0.22)] transition hover:-translate-y-0.5"
               >Star on GitHub ★</a
             >
             <a
               href="https://www.npmjs.com/package/@lab42/agentctl"
-              class="inline-flex items-center gap-2 rounded-xl border border-border-2 bg-panel px-[22px] py-3 font-mono text-[15px] font-semibold transition hover:border-brand hover:bg-brand/10"
+              class="inline-flex items-center gap-2 rounded-md border border-border-2 bg-panel px-[22px] py-3 font-mono text-[15px] font-semibold transition hover:border-brand hover:bg-brand/10"
               >npx @lab42/agentctl init</a
             >
           </div>
