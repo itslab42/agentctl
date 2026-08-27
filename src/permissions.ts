@@ -71,6 +71,122 @@ export function parsePermissions(raw: unknown): Permissions {
   return parsed;
 }
 
+/**
+ * A permission overlay applied on top of a base {@link Permissions} for a given
+ * environment (e.g. `ci`, `prod`). All fields are optional: only the fields
+ * present in the overlay file influence the merge. See {@link mergeOverlay}.
+ */
+export interface PermissionsOverlay {
+  filesystem?: { edit?: PermissionValue; write?: PermissionValue };
+  shell?: { default?: PermissionValue; allow?: string[]; deny?: string[] };
+}
+
+/**
+ * Validates an environment overlay file. Unlike {@link parsePermissions}, every
+ * field is optional — an overlay only needs to specify what it changes. A
+ * `policy` block, if present, must still be `deny_over_allow`.
+ */
+export function parsePermissionsOverlay(raw: unknown): PermissionsOverlay {
+  const root = asObject(raw, "overlay");
+
+  if (root.policy !== undefined) {
+    const policy = asObject(root.policy, "policy");
+    if (policy.precedence !== undefined && policy.precedence !== "deny_over_allow") {
+      throw new Error(
+        `policy.precedence must be "deny_over_allow" (got ${JSON.stringify(policy.precedence)})`
+      );
+    }
+  }
+
+  const overlay: PermissionsOverlay = {};
+
+  if (root.filesystem !== undefined) {
+    const filesystem = asObject(root.filesystem, "filesystem");
+    overlay.filesystem = {};
+    if (filesystem.edit !== undefined)
+      overlay.filesystem.edit = permission(filesystem.edit, "filesystem.edit");
+    if (filesystem.write !== undefined)
+      overlay.filesystem.write = permission(filesystem.write, "filesystem.write");
+  }
+
+  if (root.shell !== undefined) {
+    const shell = asObject(root.shell, "shell");
+    overlay.shell = {};
+    if (shell.default !== undefined)
+      overlay.shell.default = permission(shell.default, "shell.default");
+    if (shell.allow !== undefined) overlay.shell.allow = patterns(shell.allow, "shell.allow");
+    if (shell.deny !== undefined) overlay.shell.deny = patterns(shell.deny, "shell.deny");
+  }
+
+  return overlay;
+}
+
+/**
+ * Ranks permission values by strictness so overlays can only ever tighten.
+ * deny is strictest, then ask, then allow.
+ */
+const strictness: Record<PermissionValue, number> = { deny: 2, ask: 1, allow: 0 };
+
+/** Returns the stricter of two permission values. */
+function stricter(base: PermissionValue, overlay: PermissionValue): PermissionValue {
+  return strictness[overlay] > strictness[base] ? overlay : base;
+}
+
+/**
+ * Merges an overlay on top of a base permission set. Overlays can only ever
+ * make permissions *stricter*, never looser — a security invariant:
+ *
+ * - `shell.deny`: union (overlay can only add restrictions)
+ * - `shell.allow`: intersection (overlay can only remove permissions)
+ * - `shell.default`: the stricter of base/overlay (deny > ask > allow)
+ * - `filesystem.edit`/`filesystem.write`: the stricter of base/overlay
+ */
+export function mergeOverlay(base: Permissions, overlay: PermissionsOverlay): Permissions {
+  const merged: Permissions = {
+    policy: { precedence: "deny_over_allow" },
+    filesystem: { ...base.filesystem },
+    shell: { ...base.shell, allow: [...base.shell.allow], deny: [...base.shell.deny] }
+  };
+
+  if (overlay.filesystem?.edit !== undefined)
+    merged.filesystem.edit = stricter(base.filesystem.edit, overlay.filesystem.edit);
+  if (overlay.filesystem?.write !== undefined)
+    merged.filesystem.write = stricter(base.filesystem.write, overlay.filesystem.write);
+
+  if (overlay.shell?.default !== undefined)
+    merged.shell.default = stricter(base.shell.default, overlay.shell.default);
+
+  // deny: union
+  if (overlay.shell?.deny !== undefined) {
+    merged.shell.deny = [...new Set([...base.shell.deny, ...overlay.shell.deny])];
+  }
+
+  // allow: intersection (overlay can only remove permissions)
+  if (overlay.shell?.allow !== undefined) {
+    const overlayAllow = new Set(overlay.shell.allow);
+    merged.shell.allow = base.shell.allow.filter((pattern) => overlayAllow.has(pattern));
+  }
+
+  // Preserve the deny_over_allow invariant: anything newly denied must not
+  // remain in the allow list.
+  const denySet = new Set(merged.shell.deny);
+  merged.shell.allow = merged.shell.allow.filter((pattern) => !denySet.has(pattern));
+
+  return merged;
+}
+
+/**
+ * Resolves the active environment name. An explicit value (from `--env`) wins;
+ * otherwise `AGENTCTL_ENV` is used; otherwise CI is auto-detected from `CI` /
+ * `GITHUB_ACTIONS`; otherwise defaults to `local`.
+ */
+export function resolveEnv(explicit?: string, env: NodeJS.ProcessEnv = process.env): string {
+  if (explicit) return explicit;
+  if (env.AGENTCTL_ENV) return env.AGENTCTL_ENV;
+  if (env.CI === "true" || env.GITHUB_ACTIONS === "true") return "ci";
+  return "local";
+}
+
 export function globToRegexSource(glob: string): string {
   return "^" + glob.replace(/[.+^${}()|[\\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$";
 }

@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { basename, relative, resolve } from "node:path";
+import { basename, dirname, relative, resolve } from "node:path";
 import { loadSource } from "./config";
+import { parse } from "yaml";
+import { parsePermissionsOverlay } from "./permissions";
 import { unifiedDiff, colorize } from "./diff";
 import { color, setForceColor } from "./color";
 import { addPattern, mutatePermissions, removePattern } from "./mutate";
@@ -105,6 +107,69 @@ async function current(path: string): Promise<string | undefined> {
     return await readFile(path, "utf8");
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Extracts the value of a `--env <value>` flag from a list of args, if present.
+ * Returns undefined when the flag is absent so env auto-detection can take over.
+ */
+function envFlag(args: string[]): string | undefined {
+  const idx = args.indexOf("--env");
+  if (idx === -1) return undefined;
+  const value = args[idx + 1];
+  return value && !value.startsWith("--") ? value : undefined;
+}
+
+/**
+ * Validates every environment overlay file (`<base>.<env>.yaml`) that sits
+ * alongside the base permissions file. Throws on the first invalid overlay.
+ * The base file itself is skipped (validated separately by loadSource).
+ */
+async function validateOverlays(root: string, permissionsRelPath: string): Promise<void> {
+  const basePath = resolve(root, permissionsRelPath);
+  const dir = dirname(basePath);
+  const baseFile = basename(basePath);
+  const match = baseFile.match(/^(.*)(\.ya?ml)$/);
+  if (!match) return;
+  const [, stem, ext] = match;
+  const overlayRe = new RegExp(
+    `^${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.[^.]+${ext.replace(".", "\\.")}$`
+  );
+
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (entry === baseFile || !overlayRe.test(entry)) continue;
+    const overlayPath = resolve(dir, entry);
+    let raw: unknown;
+    try {
+      raw = parse(await readFile(overlayPath, "utf8"));
+    } catch {
+      throw new Error(
+        formatError({
+          message: `Invalid YAML in ${entry}`,
+          file: overlayPath,
+          hint: "Fix the YAML syntax error"
+        })
+      );
+    }
+    try {
+      parsePermissionsOverlay(raw);
+    } catch (error) {
+      throw new Error(
+        formatError({
+          message: (error as Error).message,
+          file: overlayPath,
+          hint: `Check your ${entry} overlay against the expected schema`
+        })
+      );
+    }
   }
 }
 
@@ -563,7 +628,7 @@ async function runExplain(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root);
+    source = await loadSource(root, { env: envFlag(explainArgs) });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -655,7 +720,7 @@ async function runAudit(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root);
+    source = await loadSource(root, { env: envFlag(auditArgs) });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -890,19 +955,27 @@ async function main(): Promise<void> {
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root);
+    source = await loadSource(root, { env: envFlag(args) });
   } catch (error) {
     console.error(`❌ Validation failed: ${(error as Error).message}`);
     process.exitCode = 1;
     return;
   }
   if (command === "validate") {
+    try {
+      await validateOverlays(root, source.config.files.permissions);
+    } catch (error) {
+      console.error(`❌ Validation failed: ${(error as Error).message}`);
+      process.exitCode = 1;
+      return;
+    }
     console.log("✅ .ai configuration is valid.");
     return;
   }
   const files = expected(root, source);
 
   if (command === "status") {
+    console.log(color.dim(`environment: ${source.env}\n`));
     let drift = false;
     for (const adapter of adapters) {
       const name = adapter.name as keyof typeof source.config.runtimes;
@@ -939,6 +1012,9 @@ async function main(): Promise<void> {
       return;
     }
     console.log("🤖 Syncing agent configurations...\n");
+    if (source.env !== "local") {
+      console.log(color.dim(`   environment: ${source.env} (overlay applied)\n`));
+    }
     for (const file of files) {
       await mkdir(resolve(file.path, ".."), { recursive: true });
       await writeFile(file.path, file.content, "utf8");
