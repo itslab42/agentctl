@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/itslab42/agentctl/main/schemas/mcp.schema.json
 # MCP (Model Context Protocol) server configuration.
 # Each entry under "servers" defines an MCP server available to all supported runtimes.
 #

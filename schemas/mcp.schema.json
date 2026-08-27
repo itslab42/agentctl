@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/itslab42/agentctl/main/schemas/mcp.schema.json",
+  "title": "AgentCtl MCP Config",
+  "description": "Model Context Protocol (MCP) server declarations for agentctl. Lives at .ai/mcp.yaml. Rendered into each runtime's MCP format.",
+  "type": "object",
+  "required": ["servers"],
+  "additionalProperties": false,
+  "properties": {
+    "servers": {
+      "type": "object",
+      "description": "Named MCP servers. Must contain at least one server.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/definitions/server"
+      }
+    }
+  },
+  "definitions": {
+    "server": {
+      "type": "object",
+      "description": "A single MCP server. The required and allowed fields depend on the transport.",
+      "required": ["transport"],
+      "oneOf": [
+        {
+          "title": "stdio transport",
+          "description": "Local command launched over stdio.",
+          "additionalProperties": false,
+          "required": ["transport", "command"],
+          "properties": {
+            "transport": {
+              "const": "stdio",
+              "description": "Local command transport."
+            },
+            "command": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Executable to launch (e.g. npx, docker)."
+            },
+            "args": {
+              "type": "array",
+              "description": "Arguments passed to the command.",
+              "items": { "type": "string" }
+            },
+            "env": {
+              "$ref": "#/definitions/env"
+            }
+          }
+        },
+        {
+          "title": "streamable-http transport",
+          "description": "Remote MCP server reached over HTTP.",
+          "additionalProperties": false,
+          "required": ["transport", "url"],
+          "properties": {
+            "transport": {
+              "const": "streamable-http",
+              "description": "Remote HTTP transport."
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Endpoint URL of the remote MCP server."
+            },
+            "env": {
+              "$ref": "#/definitions/env"
+            }
+          }
+        }
+      ]
+    },
+    "env": {
+      "type": "object",
+      "description": "Environment variables for the server. Use ${VAR_NAME} to reference secrets; do not embed real secrets.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}
