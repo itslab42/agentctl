@@ -36,18 +36,20 @@ npx @lab42/agentctl@latest scan   # detect .claude/, .codex/, .cursor/, .kiro/, 
 
 ## Commands
 
-| Command                                       | Description                                           |
-| --------------------------------------------- | ----------------------------------------------------- |
-| `agentctl init`                               | Scaffold `.ai/config.yaml` and `.ai/permissions.yaml` |
-| `agentctl sync`                               | Generate runtime config files from `.ai/`             |
-| `agentctl validate`                           | Validate source files without generating              |
-| `agentctl check`                              | Report drift without writing (exit 1 if drifted)      |
-| `agentctl diff`                               | Unified diff of what `sync` would change              |
-| `agentctl status`                             | One-line sync summary per runtime                     |
-| `agentctl scan`                               | Reverse-import existing runtime configs into `.ai/`   |
-| `agentctl allow <pattern...>`                 | Add glob patterns to the allow list                   |
-| `agentctl deny <pattern...>`                  | Add glob patterns to the deny list                    |
-| `agentctl remove --allow/--deny <pattern...>` | Remove patterns from a list                           |
+| Command                                       | Description                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `agentctl init`                               | Scaffold `.ai/config.yaml` and `.ai/permissions.yaml` (`--with-hooks` to set up a pre-commit hook) |
+| `agentctl sync`                               | Generate runtime config files from `.ai/`                                                          |
+| `agentctl validate`                           | Validate source files without generating                                                           |
+| `agentctl check`                              | Report drift without writing (exit 1 if drifted)                                                   |
+| `agentctl diff`                               | Unified diff of what `sync` would change                                                           |
+| `agentctl status`                             | One-line sync summary per runtime                                                                  |
+| `agentctl scan`                               | Reverse-import existing runtime configs into `.ai/`                                                |
+| `agentctl explain <shell-command>`            | Show whether a command is allowed or denied, and why                                               |
+| `agentctl audit`                              | Check permission consistency across enabled runtimes                                               |
+| `agentctl allow <pattern...>`                 | Add glob patterns to the allow list                                                                |
+| `agentctl deny <pattern...>`                  | Add glob patterns to the deny list                                                                 |
+| `agentctl remove --allow/--deny <pattern...>` | Remove patterns from a list                                                                        |
 
 All commands support `--color` / `--no-color`. Mutation commands (`allow`, `deny`, `remove`) support `--dry-run` and `--sync`.
 
