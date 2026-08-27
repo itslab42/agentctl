@@ -20,6 +20,7 @@ import { presets, renderPreset, listPresetNames } from "./presets";
 import { evaluate, formatForRuntime } from "./explain";
 import { audit, generateTestCommands, AuditResult, AuditSummary, AuditOptions } from "./audit";
 import { suggestCommand, formatError } from "./errors";
+import { setupHooks, HookManager } from "./hooks";
 
 interface GeneratedFile {
   path: string;
@@ -225,6 +226,23 @@ async function runInit(root: string): Promise<void> {
     }
   }
 
+  // Parse --with-hooks / --hook-manager flags
+  const withHooks = args.includes("--with-hooks");
+  const validManagers: HookManager[] = ["lefthook", "husky", "simple-git-hooks", "raw"];
+  const hookManagerIdx = args.indexOf("--hook-manager");
+  let hookManager: HookManager | undefined;
+  if (hookManagerIdx !== -1) {
+    const value = args[hookManagerIdx + 1];
+    if (!value || !validManagers.includes(value as HookManager)) {
+      console.error(
+        `❌ Unknown hook manager "${value ?? ""}". Available: ${validManagers.join(", ")}`
+      );
+      process.exitCode = 2;
+      return;
+    }
+    hookManager = value as HookManager;
+  }
+
   const stubsDir = resolve(__dirname, "stubs");
   const name = await projectName(root);
   const config = (await readFile(resolve(stubsDir, "config.yaml"), "utf8")).replace(
@@ -255,6 +273,21 @@ async function runInit(root: string): Promise<void> {
   // Update .gitignore unless --no-gitignore
   if (!args.includes("--no-gitignore")) {
     await updateGitignore(root, config);
+  }
+
+  // Set up pre-commit hook when requested (--with-hooks, or --hook-manager implies it)
+  if (withHooks || hookManager) {
+    const result = await setupHooks(root, hookManager);
+    for (const warning of result.warnings) {
+      console.log(`⚠ ${warning}`);
+    }
+    for (const message of result.messages) {
+      const prefix = result.changed ? "✅" : "ℹ";
+      console.log(`${prefix} ${message}`);
+    }
+    if (result.skipped && result.warnings.length === 0 && result.messages.length === 0) {
+      console.log("ℹ Hook setup skipped.");
+    }
   }
 
   // Suggest adding as devDependency when running via npx
