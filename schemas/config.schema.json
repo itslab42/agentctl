@@ -5,13 +5,13 @@
   "description": "Configuration for agentctl — the single source of truth for AI coding-agent settings. Lives at .ai/config.yaml.",
   "type": "object",
   "required": ["project", "sync", "files"],
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "project": {
       "type": "object",
       "description": "Project metadata used in generated file headers.",
       "required": ["name"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "name": {
           "type": "string",
@@ -22,7 +22,7 @@
     "runtimes": {
       "type": "object",
       "description": "Which AI coding-agent runtimes to generate configuration for. Any runtime omitted here defaults to disabled.",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "claude": { "$ref": "#/definitions/runtime" },
         "codex": { "$ref": "#/definitions/runtime" },
@@ -34,7 +34,7 @@
     "claude": {
       "type": "object",
       "description": "Optional Claude Code specific settings. Omitted fields fall back to defaults.",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "alwaysThinkingEnabled": {
           "type": "boolean",
@@ -54,7 +54,7 @@
       "type": "object",
       "description": "Which categories of configuration agentctl sync should generate.",
       "required": ["permissions"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "permissions": {
           "type": "boolean",
@@ -74,7 +74,7 @@
       "type": "object",
       "description": "Paths to the runtime-neutral source files.",
       "required": ["permissions"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "permissions": {
           "type": "string",
@@ -96,7 +96,7 @@
       "type": "object",
       "description": "Runtime toggle.",
       "required": ["enabled"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "enabled": {
           "type": "boolean",

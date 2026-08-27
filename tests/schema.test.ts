@@ -189,12 +189,32 @@ test("mcp schema rejects stdio server missing command", () => {
   assert.notEqual(validate(data, schema, schema).length, 0);
 });
 
-test("mcp schema rejects streamable-http server with command", () => {
+test("mcp schema rejects streamable-http server missing url", () => {
   const schema = loadJson(resolve(SCHEMAS_DIR, "mcp.schema.json"));
   const data = {
-    servers: { bad: { transport: "streamable-http", url: "http://x", command: "npx" } }
+    servers: { bad: { transport: "streamable-http" } }
   };
   assert.notEqual(validate(data, schema, schema).length, 0);
+});
+
+test("mcp schema rejects unknown transport", () => {
+  const schema = loadJson(resolve(SCHEMAS_DIR, "mcp.schema.json"));
+  const data = {
+    servers: { bad: { transport: "carrier-pigeon" } }
+  };
+  assert.notEqual(validate(data, schema, schema).length, 0);
+});
+
+// additionalProperties is intentionally permissive per SchemaStore guidance:
+// unknown fields (e.g. a future tool option) must NOT error. Transport routing
+// is enforced by the `transport` const in each oneOf branch, and required
+// fields (command for stdio, url for streamable-http) are still enforced.
+test("mcp schema tolerates unknown extra fields on a server", () => {
+  const schema = loadJson(resolve(SCHEMAS_DIR, "mcp.schema.json"));
+  const data = {
+    servers: { ok: { transport: "stdio", command: "npx", futureOption: true } }
+  };
+  assert.deepEqual(validate(data, schema, schema), []);
 });
 
 test("config schema rejects non-boolean runtime enabled", () => {
