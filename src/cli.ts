@@ -102,6 +102,12 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
   return files;
 }
 
+/**
+ * Reads a file as UTF-8 text when it is available.
+ *
+ * @param path - The file path to read
+ * @returns The file contents, or `undefined` when the file cannot be read
+ */
 async function current(path: string): Promise<string | undefined> {
   try {
     return await readFile(path, "utf8");
@@ -122,9 +128,11 @@ function envFlag(args: string[]): string | undefined {
 }
 
 /**
- * Validates every environment overlay file (`<base>.<env>.yaml`) that sits
- * alongside the base permissions file. Throws on the first invalid overlay.
- * The base file itself is skipped (validated separately by loadSource).
+ * Validates all environment-specific permission overlays located beside the base permissions file.
+ *
+ * @param root - Project root directory
+ * @param permissionsRelPath - Project-relative path to the base permissions file
+ * @throws If an overlay contains invalid YAML or does not match the expected schema
  */
 async function validateOverlays(root: string, permissionsRelPath: string): Promise<void> {
   const basePath = resolve(root, permissionsRelPath);
@@ -173,6 +181,13 @@ async function validateOverlays(root: string, permissionsRelPath: string): Promi
   }
 }
 
+/**
+ * Formats a path relative to the project root when possible.
+ *
+ * @param root - The project root used as the path reference
+ * @param path - The path to format
+ * @returns The project-relative path, or the original path when the relative path is empty
+ */
 function display(root: string, path: string): string {
   return relative(root, path) || path;
 }
@@ -607,6 +622,12 @@ async function doSync(root: string): Promise<void> {
   }
 }
 
+/**
+ * Explains how a shell command is evaluated for configured runtimes.
+ *
+ * @param root - The project root containing the agent runtime configuration
+ * @param args - CLI arguments for the `explain` command
+ */
 async function runExplain(root: string, args: string[]): Promise<void> {
   // The command string is the first non-flag argument after "explain"
   const explainArgs = args.slice(args.indexOf("explain") + 1);
@@ -710,6 +731,14 @@ async function runExplain(root: string, args: string[]): Promise<void> {
   console.log("");
 }
 
+/**
+ * Audits permission decisions across enabled runtimes and reports divergences.
+ *
+ * Supports custom command files, JSON or verbose output, advisory failure handling, and environment-specific configuration.
+ *
+ * @param root - The project root directory
+ * @param args - Command-line arguments for the audit operation
+ */
 async function runAudit(root: string, args: string[]): Promise<void> {
   const auditArgs = args.slice(args.indexOf("audit") + 1);
   const jsonOutput = auditArgs.includes("--json");
@@ -883,6 +912,11 @@ function getAllResults(
   return results;
 }
 
+/**
+ * Runs the command-line interface and dispatches the requested operation.
+ *
+ * Reports invalid commands and configuration failures through process exit codes.
+ */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes("--color")) setForceColor(true);

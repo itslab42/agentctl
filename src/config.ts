@@ -116,6 +116,13 @@ export function parseConfig(raw: unknown): AgentctlConfig {
   };
 }
 
+/**
+ * Reads and parses a YAML file.
+ *
+ * @param path - The path to the YAML file
+ * @returns The parsed YAML value
+ * @throws An error with file and syntax details when the file cannot be read or contains invalid YAML
+ */
 async function yamlFile(path: string): Promise<unknown> {
   let content: string;
   try {
@@ -151,9 +158,10 @@ async function yamlFile(path: string): Promise<unknown> {
 }
 
 /**
- * Like {@link yamlFile}, but returns `undefined` when the file does not exist
- * (ENOENT) instead of throwing. Parse errors and other read errors still throw.
- * Used for optional environment overlay files.
+ * Loads and parses a YAML file when present.
+ *
+ * @param path - The YAML file path
+ * @returns The parsed YAML value, or `undefined` when the file does not exist
  */
 async function optionalYamlFile(path: string): Promise<unknown> {
   try {
@@ -181,10 +189,9 @@ function getContextLines(content: string, line: number): string {
 }
 
 /**
- * Derives the overlay file path for a given environment from a base
- * permissions path. `.ai/permissions.yaml` + `ci` → `.ai/permissions.ci.yaml`.
- * A path without a `.yaml`/`.yml` extension gets `.{env}` appended before an
- * assumed `.yaml` suffix is preserved as-is.
+ * Derives an environment-specific overlay path from a permissions file path.
+ *
+ * A `.yaml` or `.yml` extension is preserved after inserting `.{env}` before it; paths with other extensions or no extension receive `.{env}` appended.
  */
 export function overlayPathFor(permissionsPath: string, env: string): string {
   const dir = dirname(permissionsPath);
@@ -194,6 +201,14 @@ export function overlayPathFor(permissionsPath: string, env: string): string {
   return join(dir, overlayName);
 }
 
+/**
+ * Loads and validates project configuration and permissions for the active environment.
+ *
+ * @param root - The project root directory
+ * @param options - Optional environment selection
+ * @returns The parsed configuration, environment-specific permissions, optional MCP and instruction data, and active environment
+ * @throws Error if a required configuration file is unavailable or contains invalid data
+ */
 export async function loadSource(
   root: string,
   options: { env?: string } = {}

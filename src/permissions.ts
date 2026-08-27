@@ -42,7 +42,15 @@ function patterns(value: unknown, label: string): string[] {
   return result;
 }
 
-/** Validates the runtime-neutral source-of-truth permission format. */
+/**
+ * Validates and normalizes a runtime-neutral permission configuration.
+ *
+ * Shell `allow` and `deny` patterns default to empty arrays.
+ *
+ * @param raw - The value to validate as a permission configuration
+ * @returns The validated permission configuration
+ * @throws If the value has an invalid structure, permission, policy precedence, pattern list, or overlapping shell patterns
+ */
 export function parsePermissions(raw: unknown): Permissions {
   const root = asObject(raw, "permissions");
   const policy = asObject(root.policy, "policy");
@@ -82,9 +90,14 @@ export interface PermissionsOverlay {
 }
 
 /**
- * Validates an environment overlay file. Unlike {@link parsePermissions}, every
- * field is optional — an overlay only needs to specify what it changes. A
- * `policy` block, if present, must still be `deny_over_allow`.
+ * Validates and parses an environment-specific permission overlay.
+ *
+ * All overlay fields are optional. If provided, the policy precedence must be
+ * `deny_over_allow`.
+ *
+ * @param raw - The value to validate as a permission overlay
+ * @returns The validated permission overlay
+ * @throws Error if the value has an invalid structure, permission, pattern, or policy precedence
  */
 export function parsePermissionsOverlay(raw: unknown): PermissionsOverlay {
   const root = asObject(raw, "overlay");
@@ -127,19 +140,23 @@ export function parsePermissionsOverlay(raw: unknown): PermissionsOverlay {
  */
 const strictness: Record<PermissionValue, number> = { deny: 2, ask: 1, allow: 0 };
 
-/** Returns the stricter of two permission values. */
+/**
+ * Selects the more restrictive permission value.
+ *
+ * @param base - The existing permission value
+ * @param overlay - The permission value to compare with the existing value
+ * @returns The stricter permission value according to the `deny`, `ask`, and `allow` precedence order
+ */
 function stricter(base: PermissionValue, overlay: PermissionValue): PermissionValue {
   return strictness[overlay] > strictness[base] ? overlay : base;
 }
 
 /**
- * Merges an overlay on top of a base permission set. Overlays can only ever
- * make permissions *stricter*, never looser — a security invariant:
+ * Merges an environment-specific permission overlay into a base permission set while preserving or tightening its restrictions.
  *
- * - `shell.deny`: union (overlay can only add restrictions)
- * - `shell.allow`: intersection (overlay can only remove permissions)
- * - `shell.default`: the stricter of base/overlay (deny > ask > allow)
- * - `filesystem.edit`/`filesystem.write`: the stricter of base/overlay
+ * @param base - The base permission configuration
+ * @param overlay - The optional permission changes to apply
+ * @returns A new permission configuration with stricter permissions and merged shell patterns
  */
 export function mergeOverlay(base: Permissions, overlay: PermissionsOverlay): Permissions {
   const merged: Permissions = {
@@ -187,6 +204,12 @@ export function resolveEnv(explicit?: string, env: NodeJS.ProcessEnv = process.e
   return "local";
 }
 
+/**
+ * Converts a glob pattern into an anchored regular expression source string.
+ *
+ * @param glob - The glob pattern, including optional `*` wildcards
+ * @returns A regular expression source string that matches the entire input
+ */
 export function globToRegexSource(glob: string): string {
   return "^" + glob.replace(/[.+^${}()|[\\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$";
 }
