@@ -28,37 +28,53 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Fonts borrowed from Graphify: Bricolage Grotesque (display), Geist (sans), Geist Mono (code). -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
 
     <style type="text/tailwindcss">
       @theme {
-        --color-bg: #0a0b0d;
-        --color-bg-soft: #101216;
-        --color-panel: #14171c;
-        --color-panel-2: #191d24;
-        --color-border-1: #23272f;
-        --color-border-2: #2d323c;
-        --color-ink: #e6e8ec;
-        --color-muted: #9aa2ad;
-        --color-dim: #6b7280;
-        --color-brand: #ff7a45;
-        --color-brand-2: #ffb088;
-        --color-good: #4ade80;
-        --color-bad: #f87171;
-        --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-        --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        /* Palette borrowed from Graphify: warm charcoal surfaces, cream ink,
+           terracotta brand, graph-green accent — deliberately not the usual
+           cold AI blue/purple. */
+        --color-bg: #14110e;
+        --color-bg-soft: #191512;
+        --color-panel: #1c1815;
+        --color-panel-2: #262019;
+        --color-border-1: #ffffff14;
+        --color-border-2: #ffffff24;
+        --color-ink: #f7f3ec;
+        --color-muted: #a89e8f;
+        --color-dim: #6f675b;
+        --color-brand: #cf7a52;
+        --color-brand-2: #e8cbb8;
+        --color-brand-ink: #f8f4ef;
+        --color-good: #2bc0a8;
+        --color-bad: #e0745a;
+        --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+        --font-display: "Bricolage Grotesque", "Geist", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --radius: 0.75rem;
       }
 
       /* small custom bits Tailwind utilities don't cover cleanly */
       ::selection {
         background: var(--color-brand);
-        color: #0a0b0d;
+        color: var(--color-bg);
       }
       html {
         scroll-behavior: smooth;
+      }
+      body {
+        font-feature-settings: "ss01", "cv01";
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--font-display);
+        letter-spacing: -0.015em;
       }
       .grid-bg {
         background-image:
@@ -69,7 +85,7 @@
         mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 20%, transparent 75%);
       }
       .text-grad {
-        background: linear-gradient(120deg, var(--color-brand), var(--color-brand-2));
+        background: linear-gradient(120deg, var(--color-brand), var(--color-good));
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
