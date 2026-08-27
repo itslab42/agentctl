@@ -5,13 +5,13 @@
   "description": "Runtime-neutral permission definitions for agentctl. Lives at .ai/permissions.yaml. Uses deny-over-allow precedence.",
   "type": "object",
   "required": ["policy", "filesystem", "shell"],
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "policy": {
       "type": "object",
       "description": "Precedence policy for resolving conflicting rules.",
       "required": ["precedence"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "precedence": {
           "const": "deny_over_allow",
@@ -23,7 +23,7 @@
       "type": "object",
       "description": "Filesystem edit and write permissions.",
       "required": ["edit", "write"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "edit": {
           "$ref": "#/definitions/permissionValue",
@@ -39,7 +39,7 @@
       "type": "object",
       "description": "Shell command permissions.",
       "required": ["default"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "default": {
           "$ref": "#/definitions/permissionValue",

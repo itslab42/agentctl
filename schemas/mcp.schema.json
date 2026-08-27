@@ -5,7 +5,7 @@
   "description": "Model Context Protocol (MCP) server declarations for agentctl. Lives at .ai/mcp.yaml. Rendered into each runtime's MCP format.",
   "type": "object",
   "required": ["servers"],
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "servers": {
       "type": "object",
@@ -25,7 +25,7 @@
         {
           "title": "stdio transport",
           "description": "Local command launched over stdio.",
-          "additionalProperties": false,
+          "additionalProperties": true,
           "required": ["transport", "command"],
           "properties": {
             "transport": {
@@ -50,7 +50,7 @@
         {
           "title": "streamable-http transport",
           "description": "Remote MCP server reached over HTTP.",
-          "additionalProperties": false,
+          "additionalProperties": true,
           "required": ["transport", "url"],
           "properties": {
             "transport": {
