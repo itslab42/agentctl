@@ -36,18 +36,20 @@ npx @lab42/agentctl@latest scan   # detect .claude/, .codex/, .cursor/, .kiro/, 
 
 ## Commands
 
-| Command                                       | Description                                           |
-| --------------------------------------------- | ----------------------------------------------------- |
-| `agentctl init`                               | Scaffold `.ai/config.yaml` and `.ai/permissions.yaml` |
-| `agentctl sync`                               | Generate runtime config files from `.ai/`             |
-| `agentctl validate`                           | Validate source files without generating              |
-| `agentctl check`                              | Report drift without writing (exit 1 if drifted)      |
-| `agentctl diff`                               | Unified diff of what `sync` would change              |
-| `agentctl status`                             | One-line sync summary per runtime                     |
-| `agentctl scan`                               | Reverse-import existing runtime configs into `.ai/`   |
-| `agentctl allow <pattern...>`                 | Add glob patterns to the allow list                   |
-| `agentctl deny <pattern...>`                  | Add glob patterns to the deny list                    |
-| `agentctl remove --allow/--deny <pattern...>` | Remove patterns from a list                           |
+| Command                                       | Description                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `agentctl init`                               | Scaffold `.ai/config.yaml` and `.ai/permissions.yaml` (`--with-hooks` to set up a pre-commit hook) |
+| `agentctl sync`                               | Generate runtime config files from `.ai/`                                                          |
+| `agentctl validate`                           | Validate source files without generating                                                           |
+| `agentctl check`                              | Report drift without writing (exit 1 if drifted)                                                   |
+| `agentctl diff`                               | Unified diff of what `sync` would change                                                           |
+| `agentctl status`                             | One-line sync summary per runtime                                                                  |
+| `agentctl scan`                               | Reverse-import existing runtime configs into `.ai/`                                                |
+| `agentctl explain <shell-command>`            | Show whether a command is allowed or denied, and why                                               |
+| `agentctl audit`                              | Check permission consistency across enabled runtimes                                               |
+| `agentctl allow <pattern...>`                 | Add glob patterns to the allow list                                                                |
+| `agentctl deny <pattern...>`                  | Add glob patterns to the deny list                                                                 |
+| `agentctl remove --allow/--deny <pattern...>` | Remove patterns from a list                                                                        |
 
 All commands support `--color` / `--no-color`. Mutation commands (`allow`, `deny`, `remove`) support `--dry-run` and `--sync`.
 
@@ -82,6 +84,20 @@ opencode   – not configured
 ```
 
 Exits 0 if all in sync, 1 if drift detected — useful for CI.
+
+## CI (GitHub Action)
+
+Use [`agentctl-action`](https://github.com/itslab42/agentctl-action) to verify configs stay in sync on every push and PR. It runs `agentctl` in CI and fails the build when generated files have drifted from `.ai/`.
+
+```yaml
+# .github/workflows/ci.yaml
+- uses: actions/checkout@v4
+- uses: itslab42/agentctl-action@v1
+  with:
+    command: check # check (default), status, or audit
+```
+
+Inputs: `command`, `version`, `fail-on-advisory` (for `audit`), `working-directory`, `node-version`. See the [action README](https://github.com/itslab42/agentctl-action) for details.
 
 ## MCP Configuration
 
