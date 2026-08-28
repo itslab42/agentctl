@@ -12,6 +12,7 @@ import {
 import { McpConfig, parseMcpConfig } from "./mcp";
 import { Instructions, loadInstructions } from "./instructions";
 import { AgentctlError, formatError } from "./errors";
+import { shouldUseUserConfig, loadUserPermissions, mergeUserPermissions } from "./user-config";
 
 export interface ClaudeSettings {
   alwaysThinkingEnabled: boolean;
@@ -27,6 +28,7 @@ export const claudeDefaults: ClaudeSettings = {
 
 export interface AgentctlConfig {
   project: { name: string };
+  inherit?: boolean;
   runtimes: Record<"claude" | "codex" | "cursor" | "kiro" | "opencode", { enabled: boolean }>;
   claude: ClaudeSettings;
   sync: { permissions: boolean; mcp: boolean; instructions: boolean };
@@ -70,6 +72,12 @@ export function parseConfig(raw: unknown): AgentctlConfig {
   const sync = object(root.sync, "sync");
   const files = object(root.files, "files");
 
+  // Parse optional inherit field (defaults to true)
+  let inherit: boolean | undefined;
+  if (root.inherit !== undefined) {
+    inherit = bool(root.inherit, "inherit");
+  }
+
   let claude: ClaudeSettings = { ...claudeDefaults };
   if (root.claude) {
     const c = object(root.claude, "claude");
@@ -91,6 +99,7 @@ export function parseConfig(raw: unknown): AgentctlConfig {
 
   return {
     project: { name: string(project.name, "project.name") },
+    inherit,
     runtimes: {
       claude: runtime(runtimes, "claude"),
       codex: runtime(runtimes, "codex"),
@@ -205,13 +214,13 @@ export function overlayPathFor(permissionsPath: string, env: string): string {
  * Loads and validates project configuration and permissions for the active environment.
  *
  * @param root - The project root directory
- * @param options - Optional environment selection
+ * @param options - Optional environment selection and user config control
  * @returns The parsed configuration, environment-specific permissions, optional MCP and instruction data, and active environment
  * @throws Error if a required configuration file is unavailable or contains invalid data
  */
 export async function loadSource(
   root: string,
-  options: { env?: string } = {}
+  options: { env?: string; noUser?: boolean } = {}
 ): Promise<{
   config: AgentctlConfig;
   permissions: Permissions;
@@ -249,6 +258,15 @@ export async function loadSource(
       hint: "Check your permissions.yaml against the expected schema"
     };
     throw new Error(formatError(agentErr));
+  }
+
+  // Merge user-level baseline permissions if applicable.
+  // User permissions serve as a baseline; project permissions override.
+  if (shouldUseUserConfig({ noUser: options.noUser, inherit: config.inherit })) {
+    const userPerms = await loadUserPermissions({ noUser: options.noUser });
+    if (userPerms) {
+      permissions = mergeUserPermissions(userPerms, permissions);
+    }
   }
 
   // Apply an environment overlay if a matching file exists. A missing overlay

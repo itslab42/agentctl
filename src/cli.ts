@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promis
 import { existsSync } from "node:fs";
 import { basename, dirname, relative, resolve } from "node:path";
 import { loadSource } from "./config";
+import { getUserConfigDir } from "./user-config";
 import { parse } from "yaml";
 import { parsePermissionsOverlay } from "./permissions";
 import { unifiedDiff, colorize } from "./diff";
@@ -285,6 +286,27 @@ async function runInit(root: string): Promise<void> {
     return;
   }
 
+  // --global: scaffold user-level ~/.ai/ instead of project .ai/
+  const isGlobal = args.includes("--global");
+
+  if (isGlobal) {
+    const globalDir = getUserConfigDir();
+    if (existsSync(globalDir)) {
+      console.error(
+        `❌ ${globalDir} already exists. Remove it first if you want to re-initialize.`
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const stubsDir = resolve(__dirname, "stubs");
+    const permissions = await readFile(resolve(stubsDir, "global-permissions.yaml"), "utf8");
+    await mkdir(globalDir, { recursive: true });
+    await writeFile(resolve(globalDir, "permissions.yaml"), permissions, "utf8");
+    console.log(`✅ Initialized ${globalDir}/permissions.yaml`);
+    console.log("   This baseline applies to all projects unless they set inherit: false.");
+    return;
+  }
+
   const aiDir = resolve(root, ".ai");
   if (existsSync(aiDir)) {
     console.error("❌ .ai/ already exists. Remove it first if you want to re-initialize.");
@@ -497,7 +519,7 @@ async function runMutate(root: string, command: string): Promise<void> {
   // Determine permissions file path
   let permissionsPath: string;
   try {
-    const source = await loadSource(root);
+    const source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
     permissionsPath = source.config.files.permissions;
   } catch {
     permissionsPath = ".ai/permissions.yaml";
@@ -546,7 +568,7 @@ async function runMutate(root: string, command: string): Promise<void> {
   if (doSync) {
     let source: Awaited<ReturnType<typeof loadSource>>;
     try {
-      source = await loadSource(root);
+      source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
     } catch (error) {
       console.error(`❌ Validation failed: ${(error as Error).message}`);
       process.exitCode = 1;
@@ -607,7 +629,7 @@ async function runWatch(root: string): Promise<void> {
 
 async function doSync(root: string): Promise<void> {
   try {
-    const source = await loadSource(root);
+    const source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
     const files = expected(root, source);
     let count = 0;
     for (const file of files) {
@@ -649,7 +671,10 @@ async function runExplain(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root, { env: envFlag(explainArgs) });
+    source = await loadSource(root, {
+      env: envFlag(explainArgs),
+      noUser: args.includes("--no-user")
+    });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -749,7 +774,10 @@ async function runAudit(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root, { env: envFlag(auditArgs) });
+    source = await loadSource(root, {
+      env: envFlag(auditArgs),
+      noUser: args.includes("--no-user")
+    });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -922,6 +950,9 @@ async function main(): Promise<void> {
   if (args.includes("--color")) setForceColor(true);
   else if (args.includes("--no-color")) setForceColor(false);
 
+  // Global --no-user flag: skip user-level ~/.ai/ config merge
+  const noUser = args.includes("--no-user");
+
   const command = args.find((a) => !a.startsWith("--"));
   if (command === "--version" || command === "-V") {
     const pkg = JSON.parse(await readFile(resolve(__dirname, "../package.json"), "utf8")) as {
@@ -989,7 +1020,7 @@ async function main(): Promise<void> {
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root, { env: envFlag(args) });
+    source = await loadSource(root, { env: envFlag(args), noUser });
   } catch (error) {
     console.error(`❌ Validation failed: ${(error as Error).message}`);
     process.exitCode = 1;
