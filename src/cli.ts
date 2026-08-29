@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { basename, relative, resolve } from "node:path";
+import { basename, dirname, relative, resolve } from "node:path";
 import { loadSource } from "./config";
+import { parse } from "yaml";
+import { parsePermissionsOverlay } from "./permissions";
 import { unifiedDiff, colorize } from "./diff";
 import { color, setForceColor } from "./color";
 import { addPattern, mutatePermissions, removePattern } from "./mutate";
@@ -101,6 +103,12 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
   return files;
 }
 
+/**
+ * Reads a file as UTF-8 text when it is available.
+ *
+ * @param path - The file path to read
+ * @returns The file contents, or `undefined` when the file cannot be read
+ */
 async function current(path: string): Promise<string | undefined> {
   try {
     return await readFile(path, "utf8");
@@ -109,6 +117,78 @@ async function current(path: string): Promise<string | undefined> {
   }
 }
 
+/**
+ * Extracts the value of a `--env <value>` flag from a list of args, if present.
+ * Returns undefined when the flag is absent so env auto-detection can take over.
+ */
+function envFlag(args: string[]): string | undefined {
+  const idx = args.indexOf("--env");
+  if (idx === -1) return undefined;
+  const value = args[idx + 1];
+  return value && !value.startsWith("--") ? value : undefined;
+}
+
+/**
+ * Validates all environment-specific permission overlays located beside the base permissions file.
+ *
+ * @param root - Project root directory
+ * @param permissionsRelPath - Project-relative path to the base permissions file
+ * @throws If an overlay contains invalid YAML or does not match the expected schema
+ */
+async function validateOverlays(root: string, permissionsRelPath: string): Promise<void> {
+  const basePath = resolve(root, permissionsRelPath);
+  const dir = dirname(basePath);
+  const baseFile = basename(basePath);
+  const match = baseFile.match(/^(.*)(\.ya?ml)$/);
+  if (!match) return;
+  const [, stem, ext] = match;
+  const overlayRe = new RegExp(
+    `^${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.[^.]+${ext.replace(".", "\\.")}$`
+  );
+
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (entry === baseFile || !overlayRe.test(entry)) continue;
+    const overlayPath = resolve(dir, entry);
+    let raw: unknown;
+    try {
+      raw = parse(await readFile(overlayPath, "utf8"));
+    } catch {
+      throw new Error(
+        formatError({
+          message: `Invalid YAML in ${entry}`,
+          file: overlayPath,
+          hint: "Fix the YAML syntax error"
+        })
+      );
+    }
+    try {
+      parsePermissionsOverlay(raw);
+    } catch (error) {
+      throw new Error(
+        formatError({
+          message: (error as Error).message,
+          file: overlayPath,
+          hint: `Check your ${entry} overlay against the expected schema`
+        })
+      );
+    }
+  }
+}
+
+/**
+ * Formats a path relative to the project root when possible.
+ *
+ * @param root - The project root used as the path reference
+ * @param path - The path to format
+ * @returns The project-relative path, or the original path when the relative path is empty
+ */
 function display(root: string, path: string): string {
   return relative(root, path) || path;
 }
@@ -543,6 +623,12 @@ async function doSync(root: string): Promise<void> {
   }
 }
 
+/**
+ * Explains how a shell command is evaluated for configured runtimes.
+ *
+ * @param root - The project root containing the agent runtime configuration
+ * @param args - CLI arguments for the `explain` command
+ */
 async function runExplain(root: string, args: string[]): Promise<void> {
   // The command string is the first non-flag argument after "explain"
   const explainArgs = args.slice(args.indexOf("explain") + 1);
@@ -564,7 +650,7 @@ async function runExplain(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root);
+    source = await loadSource(root, { env: envFlag(explainArgs) });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -646,6 +732,14 @@ async function runExplain(root: string, args: string[]): Promise<void> {
   console.log("");
 }
 
+/**
+ * Audits permission decisions across enabled runtimes and reports divergences.
+ *
+ * Supports custom command files, JSON or verbose output, advisory failure handling, and environment-specific configuration.
+ *
+ * @param root - The project root directory
+ * @param args - Command-line arguments for the audit operation
+ */
 async function runAudit(root: string, args: string[]): Promise<void> {
   const auditArgs = args.slice(args.indexOf("audit") + 1);
   const jsonOutput = auditArgs.includes("--json");
@@ -656,7 +750,7 @@ async function runAudit(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root);
+    source = await loadSource(root, { env: envFlag(auditArgs) });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -819,6 +913,11 @@ function getAllResults(
   return results;
 }
 
+/**
+ * Runs the command-line interface and dispatches the requested operation.
+ *
+ * Reports invalid commands and configuration failures through process exit codes.
+ */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes("--color")) setForceColor(true);
@@ -891,19 +990,27 @@ async function main(): Promise<void> {
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root);
+    source = await loadSource(root, { env: envFlag(args) });
   } catch (error) {
     console.error(`❌ Validation failed: ${(error as Error).message}`);
     process.exitCode = 1;
     return;
   }
   if (command === "validate") {
+    try {
+      await validateOverlays(root, source.config.files.permissions);
+    } catch (error) {
+      console.error(`❌ Validation failed: ${(error as Error).message}`);
+      process.exitCode = 1;
+      return;
+    }
     console.log("✅ .ai configuration is valid.");
     return;
   }
   const files = expected(root, source);
 
   if (command === "status") {
+    console.log(color.dim(`environment: ${source.env}\n`));
     let drift = false;
     for (const adapter of adapters) {
       const name = adapter.name as keyof typeof source.config.runtimes;
@@ -940,6 +1047,9 @@ async function main(): Promise<void> {
       return;
     }
     console.log("🤖 Syncing agent configurations...\n");
+    if (source.env !== "local") {
+      console.log(color.dim(`   environment: ${source.env} (overlay applied)\n`));
+    }
     for (const file of files) {
       await mkdir(resolve(file.path, ".."), { recursive: true });
       await writeFile(file.path, file.content, "utf8");

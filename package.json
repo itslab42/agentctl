@@ -1,7 +1,7 @@
 {
   "name": "@lab42/agentctl",
   "version": "0.5.0",
-  "description": "Single source of truth for AI coding-agent configuration",
+  "description": "Define AI coding-agent permissions once, enforce them everywhere. One .ai/ source of truth compiles to native configs for Claude Code, Codex, OpenCode, Cursor, and Kiro.",
   "keywords": [
     "agent",
     "ai",

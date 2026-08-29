@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>agentctl · One source of truth for AI coding-agent permissions</title>
+    <meta
+      name="description"
+      content="Define your AI coding-agent permissions once in .ai/, generate configs for Claude Code, Codex CLI, OpenCode, Cursor, and Kiro. Open-source, deterministic, CI-friendly."
+    />
+
+    <!-- Open Graph -->
+    <meta
+      property="og:title"
+      content="agentctl · One source of truth for AI coding-agent permissions"
+    />
+    <meta
+      property="og:description"
+      content="Define permissions once. Generate native configs for every AI coding agent. Deny-over-allow, deterministic, CI-friendly."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://itslab42.github.io/agentctl/" />
+
+    <!-- Tailwind via CDN: zero build, deploys to GitHub Pages as-is.
+     When migrating to Next.js, swap this for the compiled Tailwind setup;
+     the utility classes in the markup carry over unchanged. -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Fonts: Bricolage Grotesque (display), Geist (sans), Geist Mono (code). -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style type="text/tailwindcss">
+      @theme {
+        /* Palette: warm near-black surfaces, warm off-white ink, and a
+           lime/chartreuse-green accent — deliberately not the usual cold
+           blue/purple, and no orange. */
+        --color-bg: #0f0f0e;
+        --color-bg-soft: #141413;
+        --color-panel: #1a1a18;
+        --color-panel-2: #222220;
+        --color-border-1: #f0efe218;
+        --color-border-2: #f0efe22e;
+        --color-ink: #f0efe2;
+        --color-muted: #bbb9b1;
+        --color-dim: #6e6d64;
+        --color-brand: #76b900;
+        --color-brand-2: #a3e635;
+        --color-brand-ink: #0f0f0e;
+        --color-good: #8fd400;
+        --color-bad: #efa4a4;
+        --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+        --font-display: "Bricolage Grotesque", "Geist", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --radius: 0.375rem;
+      }
+
+      /* small custom bits Tailwind utilities don't cover cleanly */
+      ::selection {
+        background: var(--color-brand);
+        color: var(--color-bg);
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-feature-settings: "ss01", "cv01";
+        background-color: var(--color-bg);
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--font-display);
+        letter-spacing: -0.015em;
+      }
+      /* denser, brighter grid used as a hero flourish (masked to fade out) */
+      .grid-bg {
+        background-image:
+          linear-gradient(var(--color-border-2) 1px, transparent 1px),
+          linear-gradient(90deg, var(--color-border-2) 1px, transparent 1px);
+        background-size: 32px 32px;
+        -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 20%, transparent 75%);
+        mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 20%, transparent 75%);
+      }
+      .text-grad {
+        background: linear-gradient(120deg, var(--color-brand), var(--color-brand-2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      /* Frame: two vertical rule lines down the edges of the central 1080px
+         content lane — full page height, behind content. Not a full-page grid;
+         just the container borders. */
+      .frame-rules {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+      }
+      .frame-rules::before,
+      .frame-rules::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--color-border-1);
+      }
+      /* lane is 1080px wide, centered; keep rules inside the viewport on small screens */
+      .frame-rules::before {
+        left: max(1.5rem, 50% - 540px);
+      }
+      .frame-rules::after {
+        right: max(1.5rem, 50% - 540px);
+      }
+      .reveal {
+        opacity: 0;
+        transform: translateY(16px);
+        transition:
+          opacity 0.6s ease,
+          transform 0.6s ease;
+      }
+      .reveal.in {
+        opacity: 1;
+        transform: none;
+      }
+    </style>
+  </head>
+
+  <body class="bg-bg text-ink font-sans antialiased overflow-x-hidden leading-relaxed">
+    <!-- Container edge rules (vertical lines framing the content lane) -->
+    <div class="frame-rules" aria-hidden="true"></div>
+
+    <!-- NAV -->
+    <nav class="sticky top-0 z-50 border-b border-border-1 bg-bg/70 backdrop-blur-md">
+      <div class="mx-auto flex h-[60px] max-w-[1080px] items-center justify-between px-6">
+        <a href="#top" class="flex items-baseline gap-2 text-[17px] font-bold tracking-tight">
+          agentctl<span class="text-brand">.</span
+          ><span class="text-[12px] font-medium text-dim">by lab42</span>
+        </a>
+        <div class="flex items-center gap-7 text-sm font-medium">
+          <a href="#how" class="hidden text-muted transition-colors hover:text-ink sm:inline"
+            >How it works</a
+          >
+          <a href="#features" class="hidden text-muted transition-colors hover:text-ink sm:inline"
+            >Features</a
+          >
+          <a href="#compare" class="hidden text-muted transition-colors hover:text-ink sm:inline"
+            >Compare</a
+          >
+          <a
+            href="https://github.com/itslab42/agentctl"
+            class="rounded border border-border-2 px-3.5 py-1.5 font-semibold transition-colors hover:border-brand hover:bg-brand/10"
+            >GitHub ↗</a
+          >
+        </div>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <header id="top" class="relative overflow-hidden pt-24 pb-[72px]">
+      <div
+        class="pointer-events-none absolute -top-[240px] left-1/2 h-[620px] w-[900px] -translate-x-1/2 rounded-full blur-2xl"
+        style="
+          background: radial-gradient(ellipse at center, rgba(118, 185, 0, 0.14), transparent 60%);
+        "
+      ></div>
+      <div class="grid-bg pointer-events-none absolute inset-0 opacity-35"></div>
+
+      <div class="relative mx-auto max-w-[1080px] px-6 text-center">
+        <div
+          class="mb-7 inline-flex items-center gap-2 rounded-full border border-border-2 bg-panel px-3.5 py-1.5 text-[13px] text-muted"
+        >
+          <span class="font-mono text-xs text-brand">Apache-2.0</span> · open source · zero
+          telemetry
+        </div>
+
+        <h1 class="mb-5 text-[clamp(38px,6vw,62px)] font-extrabold leading-[1.04] tracking-tight">
+          Define agent permissions once.<br /><span class="text-grad"
+            >Enforce them everywhere.</span
+          >
+        </h1>
+
+        <p class="mx-auto mb-9 max-w-[640px] text-[clamp(16px,2.2vw,20px)] text-muted">
+          One <span class="font-mono text-brand">.ai/</span> source of truth compiles into native
+          config for Claude Code, Codex, OpenCode, Cursor, and Kiro. Deny-over-allow, deterministic,
+          and enforced in CI — so every agent plays by the same rules.
+        </p>
+
+        <div class="flex flex-wrap justify-center gap-3.5">
+          <a
+            href="#how"
+            class="inline-flex items-center gap-2 rounded-md bg-brand px-[22px] py-3 text-[15px] font-semibold text-brand-ink shadow-[0_8px_30px_rgba(118,185,0,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_38px_rgba(118,185,0,0.32)]"
+          >
+            Get started →</a
+          >
+          <a
+            href="https://www.npmjs.com/package/@lab42/agentctl"
+            class="inline-flex items-center gap-2 rounded-md border border-border-2 bg-panel px-[22px] py-3 font-mono text-[15px] font-semibold transition hover:border-brand hover:bg-brand/10"
+          >
+            npx @lab42/agentctl</a
+          >
+        </div>
+
+        <!-- terminal -->
+        <div
+          class="mx-auto mt-[52px] max-w-[760px] overflow-hidden rounded-md border border-border-1 bg-panel text-left shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+        >
+          <div class="flex items-center gap-2 border-b border-border-1 bg-panel-2 px-4 py-3">
+            <span class="h-[11px] w-[11px] rounded-full bg-[#ff5f57]"></span>
+            <span class="h-[11px] w-[11px] rounded-full bg-[#febc2e]"></span>
+            <span class="h-[11px] w-[11px] rounded-full bg-[#28c840]"></span>
+            <span class="ml-2.5 font-mono text-xs text-dim">~/project — agentctl sync</span>
+          </div>
+          <div class="px-[22px] py-5 font-mono text-[13.5px] leading-[1.9]">
+            <span class="text-dim"># define your permissions once, in one place</span><br />
+            <span class="text-brand">$</span> npx @lab42/agentctl init<br />
+            <span class="text-muted">created</span> .ai/config.yaml .ai/permissions.yaml<br /><br />
+            <span class="text-dim"># compile to every runtime's native format</span><br />
+            <span class="text-brand">$</span> npx @lab42/agentctl sync<br />
+            <span class="text-good">+</span> .claude/settings.json<br />
+            <span class="text-good">+</span> .codex/config.toml
+            <span class="text-muted">+ hooks/permission-policy.py</span><br />
+            <span class="text-good">+</span> .cursor/rules/agentctl-permissions/<br />
+            <span class="text-good">+</span> .kiro/settings/permissions.yaml<br />
+            <span class="text-good">+</span> .opencode/opencode.json<br /><br />
+            <span class="text-dim"># fail the build when configs drift</span><br />
+            <span class="text-brand">$</span> agentctl check<br />
+            <span class="text-good">claude ✓ in sync</span>
+            <span class="text-good">cursor ✓ in sync</span><br />
+            <span class="text-bad">codex ✗ out of sync</span>
+            <span class="text-good">kiro ✓ in sync</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- TRUST STRIP -->
+    <div class="border-t border-border-1 py-10">
+      <div class="mx-auto max-w-[1080px] px-6">
+        <p class="mb-5 text-center text-[13px] uppercase tracking-[0.08em] text-dim">
+          One policy · five runtimes · no lock-in
+        </p>
+        <div class="flex flex-wrap justify-center gap-x-7 gap-y-3.5">
+          <span
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            >Claude Code</span
+          >
+          <span
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            >Codex CLI</span
+          >
+          <span
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            >OpenCode</span
+          >
+          <span
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            >Cursor</span
+          >
+          <span
+            class="rounded border border-border-1 bg-panel px-4 py-2 font-mono text-sm text-muted"
+            >Kiro</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <section id="how" class="border-t border-border-1 py-[84px]">
+      <div class="mx-auto max-w-[1080px] px-6">
+        <div class="reveal mb-12">
+          <div class="mb-3.5 font-mono text-[13px] tracking-[0.04em] text-brand">HOW IT WORKS</div>
+          <h2 class="mb-4 text-[clamp(28px,4vw,40px)] font-extrabold leading-[1.12] tracking-tight">
+            Write it once. Sync it out.
+          </h2>
+          <p class="max-w-[620px] text-lg text-muted">
+            No per-tool copy-paste, no drift. Your permissions live in a runtime-neutral
+            <code class="font-mono text-brand-2">.ai/</code> directory and flow one direction into
+            each agent's own format.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <div class="reveal rounded-md border border-border-1 bg-panel p-[26px]">
+            <div class="mb-3.5 font-mono text-[13px] text-brand">STEP 01</div>
+            <h3 class="mb-2 text-lg tracking-tight">Declare</h3>
+            <p class="text-[14.5px] text-muted">
+              Set shell allow/deny globs and filesystem rules in
+              <code class="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[13px] text-brand-2"
+                >.ai/permissions.yaml</code
+              >
+              — with
+              <code class="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[13px] text-brand-2"
+                >deny_over_allow</code
+              >
+              precedence baked in.
+            </p>
+          </div>
+          <div class="reveal rounded-md border border-border-1 bg-panel p-[26px]">
+            <div class="mb-3.5 font-mono text-[13px] text-brand">STEP 02</div>
+            <h3 class="mb-2 text-lg tracking-tight">Sync</h3>
+            <p class="text-[14.5px] text-muted">
+              Run
+              <code class="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[13px] text-brand-2"
+                >agentctl sync</code
+              >. Pure-function adapters render
+              <code class="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[13px] text-brand-2"
+                >settings.json</code
+              >,
+              <code class="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[13px] text-brand-2"
+                >config.toml</code
+              >, hooks, and rules for each enabled runtime.
+            </p>
+          </div>
+          <div class="reveal rounded-md border border-border-1 bg-panel p-[26px]">
+            <div class="mb-3.5 font-mono text-[13px] text-brand">STEP 03</div>
+            <h3 class="mb-2 text-lg tracking-tight">Enforce</h3>
+            <p class="text-[14.5px] text-muted">
+              Wire
+              <code class="rounded bg-brand/10 px-1.5 py-0.5 font-mono text-[13px] text-brand-2"
+                >agentctl check</code
+              >
+              into CI. It exits non-zero the moment a generated config drifts from your source of
+              truth.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FLOW -->
+    <section class="py-[84px]">
+      <div class="mx-auto max-w-[1080px] px-6">
+        <div class="reveal grid grid-cols-1 items-center gap-7 md:grid-cols-[1fr_auto_1fr]">
+          <div class="rounded-md border border-border-1 bg-panel p-[22px] font-mono text-[13px]">
+            <div class="mb-3 font-sans font-semibold text-ink">
+              Source of truth · <span class="font-mono">.ai/</span>
+            </div>
+            <div class="py-0.5 text-muted">
+              <span class="text-brand-2">config.yaml</span> — runtimes, project
+            </div>
+            <div class="py-0.5 text-muted">
+              <span class="text-brand-2">permissions.yaml</span> — shell + fs rules
+            </div>
+            <div class="py-0.5 text-muted">
+              <span class="text-brand-2">mcp.yaml</span> — MCP servers
+              <span class="text-dim">(optional)</span>
+            </div>
+          </div>
+          <div class="text-center font-mono text-[13px] text-brand">
+            <span class="block text-[22px] max-md:rotate-90">→</span>
+            agentctl sync
+          </div>
+          <div class="rounded-md border border-border-1 bg-panel p-[22px] font-mono text-[13px]">
+            <div class="mb-3 font-sans font-semibold text-ink">Generated · native formats</div>
+            <div class="py-0.5 text-muted">.claude/settings.json</div>
+            <div class="py-0.5 text-muted">.codex/config.toml + hooks/</div>
+            <div class="py-0.5 text-muted">.cursor/rules/ · .kiro/ · .opencode/</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="border-t border-border-1 py-[84px]">
+      <div class="mx-auto max-w-[1080px] px-6">
+        <div class="reveal mb-12">
+          <div class="mb-3.5 font-mono text-[13px] tracking-[0.04em] text-brand">WHY AGENTCTL</div>
+          <h2 class="mb-4 text-[clamp(28px,4vw,40px)] font-extrabold leading-[1.12] tracking-tight">
+            Guardrails, not guesswork.
+          </h2>
+          <p class="max-w-[620px] text-lg text-muted">
+            Most tools sync instructions. agentctl governs what your agents are actually allowed to
+            do — portably.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 gap-4.5 md:grid-cols-2">
+          <div
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+          >
+            <span class="mb-3.5 block text-[22px]">🛡️</span>
+            <h3 class="mb-2 text-lg tracking-tight">Deny-over-allow by default</h3>
+            <p class="text-[14.5px] text-muted">
+              A single, predictable precedence model. Destructive shell, git, and API calls stay
+              blocked across every runtime — no per-tool reasoning required.
+            </p>
+          </div>
+          <div
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+          >
+            <span class="mb-3.5 block text-[22px]">🎯</span>
+            <h3 class="mb-2 text-lg tracking-tight">Deterministic, one-way</h3>
+            <p class="text-[14.5px] text-muted">
+              Config flows <em>only</em> from
+              <code class="font-mono text-brand-2">.ai/</code> outward. Generated files are never
+              read back, so output is reproducible and reviewable.
+            </p>
+          </div>
+          <div
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+          >
+            <span class="mb-3.5 block text-[22px]">🔁</span>
+            <h3 class="mb-2 text-lg tracking-tight">Drift detection for CI</h3>
+            <p class="text-[14.5px] text-muted">
+              <code class="font-mono text-brand-2">agentctl check</code> exits 1 the instant a
+              runtime config falls out of sync — catch it in review, not in production.
+            </p>
+          </div>
+          <div
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+          >
+            <span class="mb-3.5 block text-[22px]">📥</span>
+            <h3 class="mb-2 text-lg tracking-tight">Reverse-import existing setups</h3>
+            <p class="text-[14.5px] text-muted">
+              <code class="font-mono text-brand-2">agentctl scan</code> detects your current
+              <code class="font-mono text-brand-2">.claude/</code>,
+              <code class="font-mono text-brand-2">.cursor/</code>, and more, and pulls them into
+              one source.
+            </p>
+          </div>
+          <div
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+          >
+            <span class="mb-3.5 block text-[22px]">🔌</span>
+            <h3 class="mb-2 text-lg tracking-tight">MCP servers, declared once</h3>
+            <p class="text-[14.5px] text-muted">
+              Define Model Context Protocol servers in
+              <code class="font-mono text-brand-2">.ai/mcp.yaml</code>; agentctl renders the right
+              shape for every runtime that supports them.
+            </p>
+          </div>
+          <div
+            class="reveal rounded-md border border-border-1 bg-panel p-7 transition hover:-translate-y-0.5 hover:border-brand/40 hover:bg-panel-2"
+          >
+            <span class="mb-3.5 block text-[22px]">🧩</span>
+            <h3 class="mb-2 text-lg tracking-tight">Adapter architecture</h3>
+            <p class="text-[14.5px] text-muted">
+              Each runtime is a pure render function. Adding a new agent is one file — no rewrites,
+              no coupling to the core.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARE -->
+    <section id="compare" class="border-t border-border-1 py-[84px]">
+      <div class="mx-auto max-w-[1080px] px-6">
+        <div class="reveal mb-12">
+          <div class="mb-3.5 font-mono text-[13px] tracking-[0.04em] text-brand">
+            HOW IT DIFFERS
+          </div>
+          <h2 class="mb-4 text-[clamp(28px,4vw,40px)] font-extrabold leading-[1.12] tracking-tight">
+            Config sync tools stop at instructions.
+          </h2>
+          <p class="max-w-[620px] text-lg text-muted">
+            agentctl treats <em>permissions</em> as the first-class artifact — the part that
+            actually keeps agents safe.
+          </p>
+        </div>
+        <div class="reveal overflow-x-auto">
+          <table
+            class="w-full border-collapse overflow-hidden rounded-md border border-border-1 text-[14.5px]"
+          >
+            <thead>
+              <tr class="bg-panel-2">
+                <th
+                  class="border-b border-border-1 px-[18px] py-[15px] text-left text-[13px] font-semibold text-muted"
+                ></th>
+                <th
+                  class="border-b border-border-1 px-[18px] py-[15px] text-left text-[13px] font-semibold text-brand"
+                >
+                  agentctl
+                </th>
+                <th
+                  class="border-b border-border-1 px-[18px] py-[15px] text-left text-[13px] font-semibold text-muted"
+                >
+                  Instruction-sync tools
+                </th>
+                <th
+                  class="border-b border-border-1 px-[18px] py-[15px] text-left text-[13px] font-semibold text-muted"
+                >
+                  Runtime proxies
+                </th>
+              </tr>
+            </thead>
+            <tbody
+              class="[&_td]:border-b [&_td]:border-border-1 [&_td]:px-[18px] [&_td]:py-[15px] [&_td:first-child]:text-muted [&_tr:last-child_td]:border-b-0"
+            >
+              <tr>
+                <td>Governs what agents may <em>do</em></td>
+                <td class="font-medium text-ink"><span class="text-good">● yes</span></td>
+                <td><span class="text-dim">○ instructions only</span></td>
+                <td><span class="text-good">● yes</span></td>
+              </tr>
+              <tr>
+                <td>Deny-over-allow precedence</td>
+                <td class="font-medium text-ink"><span class="text-good">● built in</span></td>
+                <td><span class="text-dim">○ n/a</span></td>
+                <td><span class="text-good">● varies</span></td>
+              </tr>
+              <tr>
+                <td>Runs at build time (no live proxy)</td>
+                <td class="font-medium text-ink"><span class="text-good">● yes</span></td>
+                <td><span class="text-good">● yes</span></td>
+                <td><span class="text-dim">○ requires gateway</span></td>
+              </tr>
+              <tr>
+                <td>Multi-runtime native output</td>
+                <td class="font-medium text-ink"><span class="text-good">● 5 runtimes</span></td>
+                <td><span class="text-good">● varies</span></td>
+                <td><span class="text-dim">○ single path</span></td>
+              </tr>
+              <tr>
+                <td>Drift check for CI</td>
+                <td class="font-medium text-ink"><span class="text-good">● exit 1</span></td>
+                <td><span class="text-dim">○ rare</span></td>
+                <td><span class="text-dim">○ n/a</span></td>
+              </tr>
+              <tr>
+                <td>Fully local, no telemetry</td>
+                <td class="font-medium text-ink"><span class="text-good">● yes</span></td>
+                <td><span class="text-good">● usually</span></td>
+                <td><span class="text-dim">○ often hosted</span></td>
+              </tr>
+              <tr>
+                <td>License</td>
+                <td class="font-medium text-ink">Apache-2.0</td>
+                <td>mixed</td>
+                <td>mixed / commercial</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="border-t border-border-1 py-[84px] text-center">
+      <div class="mx-auto max-w-[1080px] px-6">
+        <div
+          class="reveal relative overflow-hidden rounded-lg border border-border-2 bg-gradient-to-b from-panel-2 to-panel px-8 py-14"
+        >
+          <div
+            class="pointer-events-none absolute -top-[120px] left-1/2 h-[300px] w-[500px] -translate-x-1/2"
+            style="background: radial-gradient(ellipse, rgba(118, 185, 0, 0.14), transparent 65%)"
+          ></div>
+          <h2 class="relative text-[clamp(28px,4vw,40px)] font-extrabold tracking-tight">
+            One source of truth. Every agent.
+          </h2>
+          <p class="relative mx-auto mt-3 mb-7 max-w-[480px] text-muted">
+            Set up your first synced permission set in under two minutes — no install, entirely on
+            your machine.
+          </p>
+          <div class="relative flex flex-wrap justify-center gap-3.5">
+            <a
+              href="https://github.com/itslab42/agentctl"
+              class="inline-flex items-center gap-2 rounded-md bg-brand px-[22px] py-3 text-[15px] font-semibold text-brand-ink shadow-[0_8px_30px_rgba(118,185,0,0.22)] transition hover:-translate-y-0.5"
+              >Star on GitHub ★</a
+            >
+            <a
+              href="https://www.npmjs.com/package/@lab42/agentctl"
+              class="inline-flex items-center gap-2 rounded-md border border-border-2 bg-panel px-[22px] py-3 font-mono text-[15px] font-semibold transition hover:border-brand hover:bg-brand/10"
+              >npx @lab42/agentctl init</a
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-border-1 pt-11 pb-[60px]">
+      <div class="mx-auto flex max-w-[1080px] flex-wrap items-center justify-between gap-5 px-6">
+        <a href="#top" class="flex items-baseline gap-2 text-[17px] font-bold tracking-tight">
+          agentctl<span class="text-brand">.</span
+          ><span class="text-[12px] font-medium text-dim">by lab42</span>
+        </a>
+        <div class="flex flex-wrap gap-6 text-sm">
+          <a href="https://github.com/itslab42/agentctl" class="text-muted hover:text-ink"
+            >GitHub</a
+          >
+          <a href="https://www.npmjs.com/package/@lab42/agentctl" class="text-muted hover:text-ink"
+            >npm</a
+          >
+          <a href="https://github.com/itslab42/agentctl#readme" class="text-muted hover:text-ink"
+            >Docs</a
+          >
+          <a
+            href="https://github.com/itslab42/agentctl/blob/main/LICENSE"
+            class="text-muted hover:text-ink"
+            >License</a
+          >
+        </div>
+        <div class="text-[13px] text-dim">© 2026 lab42 · Apache-2.0</div>
+      </div>
+    </footer>
+
+    <script>
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("in");
+              io.unobserve(e.target);
+            }
+          });
+        },
+        { threshold: 0.12 }
+      );
+      document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    </script>
+  </body>
+</html>

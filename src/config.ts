@@ -1,7 +1,14 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { resolve, dirname, basename, join } from "node:path";
 import { parse } from "yaml";
-import { Permissions, parsePermissions } from "./permissions";
+import {
+  Permissions,
+  PermissionsOverlay,
+  parsePermissions,
+  parsePermissionsOverlay,
+  mergeOverlay,
+  resolveEnv
+} from "./permissions";
 import { McpConfig, parseMcpConfig } from "./mcp";
 import { Instructions, loadInstructions } from "./instructions";
 import { AgentctlError, formatError } from "./errors";
@@ -131,6 +138,13 @@ export function parseConfig(raw: unknown): AgentctlConfig {
   };
 }
 
+/**
+ * Reads and parses a YAML file.
+ *
+ * @param path - The path to the YAML file
+ * @returns The parsed YAML value
+ * @throws An error with file and syntax details when the file cannot be read or contains invalid YAML
+ */
 async function yamlFile(path: string): Promise<unknown> {
   let content: string;
   try {
@@ -165,6 +179,22 @@ async function yamlFile(path: string): Promise<unknown> {
   }
 }
 
+/**
+ * Loads and parses a YAML file when present.
+ *
+ * @param path - The YAML file path
+ * @returns The parsed YAML value, or `undefined` when the file does not exist
+ */
+async function optionalYamlFile(path: string): Promise<unknown> {
+  try {
+    await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    // Non-ENOENT read errors (e.g. EACCES) surface via yamlFile below.
+  }
+  return yamlFile(path);
+}
+
 /** Extract a few lines of context around the given 1-based line number. */
 function getContextLines(content: string, line: number): string {
   const lines = content.split("\n");
@@ -180,12 +210,38 @@ function getContextLines(content: string, line: number): string {
     .join("\n");
 }
 
-export async function loadSource(root: string): Promise<{
+/**
+ * Derives an environment-specific overlay path from a permissions file path.
+ *
+ * A `.yaml` or `.yml` extension is preserved after inserting `.{env}` before it; paths with other extensions or no extension receive `.{env}` appended.
+ */
+export function overlayPathFor(permissionsPath: string, env: string): string {
+  const dir = dirname(permissionsPath);
+  const file = basename(permissionsPath);
+  const match = file.match(/^(.*)(\.ya?ml)$/);
+  const overlayName = match ? `${match[1]}.${env}${match[2]}` : `${file}.${env}`;
+  return join(dir, overlayName);
+}
+
+/**
+ * Loads and validates project configuration and permissions for the active environment.
+ *
+ * @param root - The project root directory
+ * @param options - Optional environment selection
+ * @returns The parsed configuration, environment-specific permissions, optional MCP and instruction data, and active environment
+ * @throws Error if a required configuration file is unavailable or contains invalid data
+ */
+export async function loadSource(
+  root: string,
+  options: { env?: string } = {}
+): Promise<{
   config: AgentctlConfig;
   permissions: Permissions;
   mcp?: McpConfig;
   instructions?: Instructions;
+  env: string;
 }> {
+  const activeEnv = resolveEnv(options.env);
   const configPath = resolve(root, ".ai/config.yaml");
 
   const configRaw = await yamlFile(configPath);
@@ -217,6 +273,25 @@ export async function loadSource(root: string): Promise<{
     throw new Error(formatError(agentErr));
   }
 
+  // Apply an environment overlay if a matching file exists. A missing overlay
+  // for the active environment is not an error — the base permissions are used.
+  const overlayPath = overlayPathFor(permissionsPath, activeEnv);
+  const overlayRaw = await optionalYamlFile(overlayPath);
+  if (overlayRaw !== undefined) {
+    let overlay: PermissionsOverlay;
+    try {
+      overlay = parsePermissionsOverlay(overlayRaw);
+    } catch (error) {
+      const agentErr: AgentctlError = {
+        message: (error as Error).message,
+        file: overlayPath,
+        hint: `Check your ${basename(overlayPath)} overlay against the expected schema`
+      };
+      throw new Error(formatError(agentErr));
+    }
+    permissions = mergeOverlay(permissions, overlay);
+  }
+
   let mcp: McpConfig | undefined;
   if (config.files.mcp) {
     const mcpPath = resolve(root, config.files.mcp);
@@ -238,5 +313,5 @@ export async function loadSource(root: string): Promise<{
     instructions = await loadInstructions(root, config.files.instructions);
   }
 
-  return { config, permissions, mcp, instructions };
+  return { config, permissions, mcp, instructions, env: activeEnv };
 }
