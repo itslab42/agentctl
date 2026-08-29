@@ -12,7 +12,12 @@ import {
 import { McpConfig, parseMcpConfig } from "./mcp";
 import { Instructions, loadInstructions } from "./instructions";
 import { AgentctlError, formatError } from "./errors";
-import { shouldUseUserConfig, loadUserPermissions, mergeUserPermissions } from "./user-config";
+import {
+  shouldUseUserConfig,
+  loadUserConfig,
+  loadUserPermissions,
+  mergeUserPermissions
+} from "./user-config";
 
 export interface ClaudeSettings {
   alwaysThinkingEnabled: boolean;
@@ -131,6 +136,40 @@ export function parseConfig(raw: unknown): AgentctlConfig {
   };
 }
 
+const userClaudeDefaults = [
+  "alwaysThinkingEnabled",
+  "cleanupPeriodDays",
+  "disableTelemetry"
+] as const;
+
+/** Applies supported user-level setting defaults without inheriting runtime enablement. */
+function mergeUserConfigDefaults(user: Record<string, unknown>, project: unknown): unknown {
+  if (!project || typeof project !== "object" || Array.isArray(project)) return project;
+
+  const userClaude = user.claude;
+  if (!userClaude || typeof userClaude !== "object" || Array.isArray(userClaude)) return project;
+
+  const projectRoot = project as Record<string, unknown>;
+  const projectClaude = projectRoot.claude;
+  if (
+    projectClaude !== undefined &&
+    (!projectClaude || typeof projectClaude !== "object" || Array.isArray(projectClaude))
+  ) {
+    return project;
+  }
+  const projectClaudeSettings = projectClaude ? (projectClaude as Record<string, unknown>) : {};
+  const claude: Record<string, unknown> = {};
+
+  for (const key of userClaudeDefaults) {
+    if (key in userClaude) claude[key] = (userClaude as Record<string, unknown>)[key];
+  }
+
+  return {
+    ...projectRoot,
+    claude: { ...claude, ...projectClaudeSettings }
+  };
+}
+
 /**
  * Reads and parses a YAML file.
  *
@@ -237,7 +276,21 @@ export async function loadSource(
   const activeEnv = resolveEnv(options.env);
   const configPath = resolve(root, ".ai/config.yaml");
 
-  const configRaw = await yamlFile(configPath);
+  let configRaw = await yamlFile(configPath);
+
+  const projectInherit =
+    configRaw && typeof configRaw === "object" && !Array.isArray(configRaw)
+      ? (configRaw as Record<string, unknown>).inherit
+      : undefined;
+  if (
+    shouldUseUserConfig({
+      noUser: options.noUser,
+      inherit: projectInherit === false ? false : undefined
+    })
+  ) {
+    const userConfig = await loadUserConfig({ noUser: options.noUser });
+    if (userConfig) configRaw = mergeUserConfigDefaults(userConfig, configRaw);
+  }
 
   let config: AgentctlConfig;
   try {

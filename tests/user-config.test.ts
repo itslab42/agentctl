@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { homedir } from "node:os";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { getUserConfigDir, shouldUseUserConfig, mergeUserPermissions } from "../src/user-config";
 import { Permissions } from "../src/permissions";
+import { loadSource } from "../src/config";
 
 // --- getUserConfigDir ---
 
@@ -51,6 +53,74 @@ test("shouldUseUserConfig returns true when inherit is undefined (default)", () 
 
 test("shouldUseUserConfig returns true when inherit is true", () => {
   assert.equal(shouldUseUserConfig({ inherit: true }, {}), true);
+});
+
+test("loadSource applies user config defaults while project settings and runtimes override", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "agentctl-user-config-"));
+  const projectDir = join(root, "project");
+  const projectAiDir = join(projectDir, ".ai");
+  const userConfigDir = join(root, "config", "agentctl");
+  const previousXdgConfigHome = process.env.XDG_CONFIG_HOME;
+
+  process.env.XDG_CONFIG_HOME = join(root, "config");
+  t.after(() => {
+    if (previousXdgConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = previousXdgConfigHome;
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  mkdirSync(projectAiDir, { recursive: true });
+  mkdirSync(userConfigDir, { recursive: true });
+  writeFileSync(
+    join(userConfigDir, "config.yaml"),
+    `runtimes:
+  codex:
+    enabled: true
+claude:
+  alwaysThinkingEnabled: false
+  cleanupPeriodDays: 30
+  disableTelemetry: false
+`,
+    "utf8"
+  );
+  writeFileSync(
+    join(projectAiDir, "config.yaml"),
+    `project:
+  name: test-project
+runtimes:
+  claude:
+    enabled: true
+claude:
+  cleanupPeriodDays: 7
+sync:
+  permissions: true
+files:
+  permissions: .ai/permissions.yaml
+`,
+    "utf8"
+  );
+  writeFileSync(
+    join(projectAiDir, "permissions.yaml"),
+    `policy:
+  precedence: deny_over_allow
+filesystem:
+  edit: allow
+  write: allow
+shell:
+  default: ask
+  allow: []
+  deny: []
+`,
+    "utf8"
+  );
+
+  const source = await loadSource(projectDir);
+
+  assert.equal(source.config.claude.alwaysThinkingEnabled, false);
+  assert.equal(source.config.claude.cleanupPeriodDays, 7);
+  assert.equal(source.config.claude.disableTelemetry, false);
+  assert.equal(source.config.runtimes.claude.enabled, true);
+  assert.equal(source.config.runtimes.codex.enabled, false);
 });
 
 // --- mergeUserPermissions ---
