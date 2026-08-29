@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promis
 import { existsSync } from "node:fs";
 import { basename, dirname, relative, resolve } from "node:path";
 import { loadSource } from "./config";
+import { getUserConfigDir } from "./user-config";
 import { parse } from "yaml";
 import { parsePermissionsOverlay } from "./permissions";
 import { unifiedDiff, colorize } from "./diff";
@@ -272,6 +273,14 @@ function isRunViaNpx(root: string): boolean {
   return !existsSync(resolve(root, "node_modules", "@lab42", "agentctl"));
 }
 
+/**
+ * Initializes project-level or user-level agent-runtime configuration.
+ *
+ * Supports permission presets, optional pre-commit hooks, and Git ignore updates.
+ * Refuses to overwrite an existing configuration directory.
+ *
+ * @param root - The project root directory.
+ */
 async function runInit(root: string): Promise<void> {
   const args = process.argv.slice(3);
 
@@ -282,6 +291,27 @@ async function runInit(root: string): Promise<void> {
       console.log(`  ${preset.name.padEnd(12)} ${preset.description}`);
     }
     console.log("\nUsage: agentctl init --preset <name>");
+    return;
+  }
+
+  // --global: scaffold user-level ~/.ai/ instead of project .ai/
+  const isGlobal = args.includes("--global");
+
+  if (isGlobal) {
+    const globalDir = getUserConfigDir();
+    if (existsSync(globalDir)) {
+      console.error(
+        `❌ ${globalDir} already exists. Remove it first if you want to re-initialize.`
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const stubsDir = resolve(__dirname, "stubs");
+    const permissions = await readFile(resolve(stubsDir, "global-permissions.yaml"), "utf8");
+    await mkdir(globalDir, { recursive: true });
+    await writeFile(resolve(globalDir, "permissions.yaml"), permissions, "utf8");
+    console.log(`✅ Initialized ${globalDir}/permissions.yaml`);
+    console.log("   This baseline applies to all projects unless they set inherit: false.");
     return;
   }
 
@@ -446,6 +476,12 @@ async function runScan(root: string): Promise<void> {
   console.log("  .ai/permissions.yaml");
 }
 
+/**
+ * Adds or removes shell permission patterns and optionally synchronizes generated runtime files.
+ *
+ * @param root - The project root directory.
+ * @param command - The mutation command: `allow`, `deny`, `add`, or `remove`.
+ */
 async function runMutate(root: string, command: string): Promise<void> {
   const args = process.argv.slice(3);
   const dryRun = args.includes("--dry-run");
@@ -497,7 +533,7 @@ async function runMutate(root: string, command: string): Promise<void> {
   // Determine permissions file path
   let permissionsPath: string;
   try {
-    const source = await loadSource(root);
+    const source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
     permissionsPath = source.config.files.permissions;
   } catch {
     permissionsPath = ".ai/permissions.yaml";
@@ -546,7 +582,7 @@ async function runMutate(root: string, command: string): Promise<void> {
   if (doSync) {
     let source: Awaited<ReturnType<typeof loadSource>>;
     try {
-      source = await loadSource(root);
+      source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
     } catch (error) {
       console.error(`❌ Validation failed: ${(error as Error).message}`);
       process.exitCode = 1;
@@ -605,9 +641,12 @@ async function runWatch(root: string): Promise<void> {
   await new Promise(() => {});
 }
 
+/**
+ * Synchronizes generated runtime files with the loaded project configuration.
+ */
 async function doSync(root: string): Promise<void> {
   try {
-    const source = await loadSource(root);
+    const source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
     const files = expected(root, source);
     let count = 0;
     for (const file of files) {
@@ -649,7 +688,10 @@ async function runExplain(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root, { env: envFlag(explainArgs) });
+    source = await loadSource(root, {
+      env: envFlag(explainArgs),
+      noUser: args.includes("--no-user")
+    });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -749,7 +791,10 @@ async function runAudit(root: string, args: string[]): Promise<void> {
 
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root, { env: envFlag(auditArgs) });
+    source = await loadSource(root, {
+      env: envFlag(auditArgs),
+      noUser: args.includes("--no-user")
+    });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
     process.exitCode = 1;
@@ -915,12 +960,15 @@ function getAllResults(
 /**
  * Runs the command-line interface and dispatches the requested operation.
  *
- * Reports invalid commands and configuration failures through process exit codes.
+ * Reports invalid commands, configuration failures, and configuration drift through process exit codes.
  */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes("--color")) setForceColor(true);
   else if (args.includes("--no-color")) setForceColor(false);
+
+  // Global --no-user flag: skip user-level ~/.ai/ config merge
+  const noUser = args.includes("--no-user");
 
   const command = args.find((a) => !a.startsWith("--"));
   if (command === "--version" || command === "-V") {
@@ -989,7 +1037,7 @@ async function main(): Promise<void> {
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root, { env: envFlag(args) });
+    source = await loadSource(root, { env: envFlag(args), noUser });
   } catch (error) {
     console.error(`❌ Validation failed: ${(error as Error).message}`);
     process.exitCode = 1;

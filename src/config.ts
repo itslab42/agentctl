@@ -12,6 +12,12 @@ import {
 import { McpConfig, parseMcpConfig } from "./mcp";
 import { Instructions, loadInstructions } from "./instructions";
 import { AgentctlError, formatError } from "./errors";
+import {
+  shouldUseUserConfig,
+  loadUserConfig,
+  loadUserPermissions,
+  mergeUserPermissions
+} from "./user-config";
 
 export interface ClaudeSettings {
   alwaysThinkingEnabled: boolean;
@@ -27,6 +33,7 @@ export const claudeDefaults: ClaudeSettings = {
 
 export interface AgentctlConfig {
   project: { name: string };
+  inherit?: boolean;
   runtimes: Record<"claude" | "codex" | "cursor" | "kiro" | "opencode", { enabled: boolean }>;
   claude: ClaudeSettings;
   sync: { permissions: boolean; mcp: boolean; instructions: boolean };
@@ -63,12 +70,24 @@ function runtime(raw: Record<string, unknown>, name: string): { enabled: boolean
   return { enabled };
 }
 
+/**
+ * Parses and validates raw configuration data into an `AgentctlConfig`.
+ *
+ * @param raw - The raw configuration value to validate
+ * @returns The validated configuration with defaults applied
+ */
 export function parseConfig(raw: unknown): AgentctlConfig {
   const root = object(raw, "config");
   const project = object(root.project, "project");
   const runtimes = root.runtimes ? object(root.runtimes, "runtimes") : {};
   const sync = object(root.sync, "sync");
   const files = object(root.files, "files");
+
+  // Parse optional inherit field (defaults to true)
+  let inherit: boolean | undefined;
+  if (root.inherit !== undefined) {
+    inherit = bool(root.inherit, "inherit");
+  }
 
   let claude: ClaudeSettings = { ...claudeDefaults };
   if (root.claude) {
@@ -91,6 +110,7 @@ export function parseConfig(raw: unknown): AgentctlConfig {
 
   return {
     project: { name: string(project.name, "project.name") },
+    inherit,
     runtimes: {
       claude: runtime(runtimes, "claude"),
       codex: runtime(runtimes, "codex"),
@@ -113,6 +133,40 @@ export function parseConfig(raw: unknown): AgentctlConfig {
           ? string(files.instructions, "files.instructions")
           : undefined
     }
+  };
+}
+
+const userClaudeDefaults = [
+  "alwaysThinkingEnabled",
+  "cleanupPeriodDays",
+  "disableTelemetry"
+] as const;
+
+/** Applies supported user-level setting defaults without inheriting runtime enablement. */
+function mergeUserConfigDefaults(user: Record<string, unknown>, project: unknown): unknown {
+  if (!project || typeof project !== "object" || Array.isArray(project)) return project;
+
+  const userClaude = user.claude;
+  if (!userClaude || typeof userClaude !== "object" || Array.isArray(userClaude)) return project;
+
+  const projectRoot = project as Record<string, unknown>;
+  const projectClaude = projectRoot.claude;
+  if (
+    projectClaude !== undefined &&
+    (!projectClaude || typeof projectClaude !== "object" || Array.isArray(projectClaude))
+  ) {
+    return project;
+  }
+  const projectClaudeSettings = projectClaude ? (projectClaude as Record<string, unknown>) : {};
+  const claude: Record<string, unknown> = {};
+
+  for (const key of userClaudeDefaults) {
+    if (key in userClaude) claude[key] = (userClaude as Record<string, unknown>)[key];
+  }
+
+  return {
+    ...projectRoot,
+    claude: { ...claude, ...projectClaudeSettings }
   };
 }
 
@@ -202,16 +256,16 @@ export function overlayPathFor(permissionsPath: string, env: string): string {
 }
 
 /**
- * Loads and validates project configuration and permissions for the active environment.
+ * Loads project configuration, permissions, and optional integrations for the active environment.
  *
  * @param root - The project root directory
- * @param options - Optional environment selection
- * @returns The parsed configuration, environment-specific permissions, optional MCP and instruction data, and active environment
- * @throws Error if a required configuration file is unavailable or contains invalid data
+ * @param options - Optional environment selection and user-level permission inheritance control
+ * @returns The parsed configuration, effective permissions, optional MCP and instruction data, and active environment
+ * @throws Error if a required file is unavailable or contains invalid data
  */
 export async function loadSource(
   root: string,
-  options: { env?: string } = {}
+  options: { env?: string; noUser?: boolean } = {}
 ): Promise<{
   config: AgentctlConfig;
   permissions: Permissions;
@@ -222,7 +276,21 @@ export async function loadSource(
   const activeEnv = resolveEnv(options.env);
   const configPath = resolve(root, ".ai/config.yaml");
 
-  const configRaw = await yamlFile(configPath);
+  let configRaw = await yamlFile(configPath);
+
+  const projectInherit =
+    configRaw && typeof configRaw === "object" && !Array.isArray(configRaw)
+      ? (configRaw as Record<string, unknown>).inherit
+      : undefined;
+  if (
+    shouldUseUserConfig({
+      noUser: options.noUser,
+      inherit: projectInherit === false ? false : undefined
+    })
+  ) {
+    const userConfig = await loadUserConfig({ noUser: options.noUser });
+    if (userConfig) configRaw = mergeUserConfigDefaults(userConfig, configRaw);
+  }
 
   let config: AgentctlConfig;
   try {
@@ -249,6 +317,15 @@ export async function loadSource(
       hint: "Check your permissions.yaml against the expected schema"
     };
     throw new Error(formatError(agentErr));
+  }
+
+  // Merge user-level baseline permissions if applicable.
+  // User permissions serve as a baseline; project permissions override.
+  if (shouldUseUserConfig({ noUser: options.noUser, inherit: config.inherit })) {
+    const userPerms = await loadUserPermissions({ noUser: options.noUser });
+    if (userPerms) {
+      permissions = mergeUserPermissions(userPerms, permissions);
+    }
   }
 
   // Apply an environment overlay if a matching file exists. A missing overlay
