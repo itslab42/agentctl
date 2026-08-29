@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/itslab42/agentctl/main/schemas/permissions.schema.json
+# User-level baseline permissions — applied to all projects unless overridden.
+policy:
+  precedence: deny_over_allow
+
+filesystem:
+  edit: allow
+  write: allow
+
+shell:
+  default: ask
+  allow:
+    - "pnpm *"
+    - "npm *"
+    - "git status"
+    - "git log *"
+    - "git diff *"
+  deny:
+    - "rm -rf /"
+    - "rm -rf /*"
+    - "git push --force *"
+    - "git reset --hard *"
+    - "git clean -fd *"
