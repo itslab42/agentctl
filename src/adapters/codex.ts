@@ -1,12 +1,13 @@
 import { Permissions, PermissionValue, globToRegexSource, GENERATED_MARKER } from "../permissions";
 import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
+import { CodexSettings, codexDefaults } from "../config";
 import { regexSourceToGlob } from "../scan";
 
 const PATHS = [".codex/config.toml", ".codex/hooks/permission-policy.py"];
 
 function renderConfig(permissions: Permissions): string {
   const writable =
-    permissions.filesystem.edit === "allow" || permissions.filesystem.write === "allow";
+    permissions.filesystem.edit === "allow" && permissions.filesystem.write === "allow";
   const approval =
     permissions.shell.default === "ask"
       ? "on-request"
@@ -16,9 +17,11 @@ function renderConfig(permissions: Permissions): string {
   return `# ${GENERATED_MARKER}\napproval_policy = "${approval}"\nsandbox_mode = "${writable ? "workspace-write" : "read-only"}"\n\n[hooks.PreToolUse]\nBash = ".codex/hooks/permission-policy.py"\n`;
 }
 
-function renderHook(permissions: Permissions): string {
+function renderHook(permissions: Permissions, settings: CodexSettings = codexDefaults): string {
   const denyPatterns = permissions.shell.deny.map(globToRegexSource);
   const allowPatterns = permissions.shell.allow.map(globToRegexSource);
+  const notifyOnDeny = settings.notifyOnDeny;
+
   return `#!/usr/bin/env python3
 # ${GENERATED_MARKER}
 # Source: .ai/permissions.yaml
@@ -30,6 +33,16 @@ DENY_PATTERNS = ${JSON.stringify(denyPatterns, null, 2)}
 
 ALLOW_PATTERNS = ${JSON.stringify(allowPatterns, null, 2)}
 
+NOTIFY_ON_DENY = ${notifyOnDeny ? "True" : "False"}
+
+
+def deny(reason: str) -> None:
+    """Emit a deny decision and optionally log to stderr."""
+    if NOTIFY_ON_DENY:
+        print(f"[agentctl] denied: {reason}", file=sys.stderr)
+    print(json.dumps({"permissionDecision": "deny", "permissionDecisionReason": reason}))
+
+
 def main() -> None:
     try:
         invocation = json.load(sys.stdin)
@@ -39,7 +52,7 @@ def main() -> None:
         return
     command = invocation.get("tool_input", {}).get("command", "")
     if any(re.match(pattern, command) for pattern in DENY_PATTERNS):
-        print(json.dumps({"permissionDecision": "deny", "permissionDecisionReason": "Blocked by agentctl shell deny policy"}))
+        deny("Blocked by agentctl shell deny policy")
         return
     if any(re.match(pattern, command) for pattern in ALLOW_PATTERNS):
         print(json.dumps({"permissionDecision": "allow", "permissionDecisionReason": "Approved by agentctl shell allow policy"}))
@@ -108,10 +121,14 @@ export const codexAdapter: Adapter = {
   name: "codex",
   paths: PATHS,
 
-  render(permissions: Permissions, _options?: AdapterOptions): GeneratedFile[] {
+  render(permissions: Permissions, options?: AdapterOptions): GeneratedFile[] {
     return [
       { path: PATHS[0], content: renderConfig(permissions) },
-      { path: PATHS[1], content: renderHook(permissions), executable: true }
+      {
+        path: PATHS[1],
+        content: renderHook(permissions, options?.codex ?? codexDefaults),
+        executable: true
+      }
     ];
   },
 
@@ -130,6 +147,9 @@ export function renderCodexConfig(permissions: Permissions): string {
 }
 
 /** @deprecated Use codexAdapter.render() instead */
-export function renderCodexHook(permissions: Permissions): string {
-  return renderHook(permissions);
+export function renderCodexHook(
+  permissions: Permissions,
+  settings: CodexSettings = codexDefaults
+): string {
+  return renderHook(permissions, settings);
 }

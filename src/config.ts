@@ -31,11 +31,21 @@ export const claudeDefaults: ClaudeSettings = {
   disableTelemetry: true
 };
 
+export interface CodexSettings {
+  /** Log to stderr when the hook blocks a command. Default: false */
+  notifyOnDeny: boolean;
+}
+
+export const codexDefaults: CodexSettings = {
+  notifyOnDeny: false
+};
+
 export interface AgentctlConfig {
   project: { name: string };
   inherit?: boolean;
   runtimes: Record<"claude" | "codex" | "cursor" | "kiro" | "opencode", { enabled: boolean }>;
   claude: ClaudeSettings;
+  codex: CodexSettings;
   sync: { permissions: boolean; mcp: boolean; instructions: boolean };
   files: { permissions: string; mcp?: string; instructions?: string };
 }
@@ -108,6 +118,17 @@ export function parseConfig(raw: unknown): AgentctlConfig {
     };
   }
 
+  let codex: CodexSettings = { ...codexDefaults };
+  if (root.codex) {
+    const cx = object(root.codex, "codex");
+    codex = {
+      notifyOnDeny:
+        cx.notifyOnDeny !== undefined
+          ? bool(cx.notifyOnDeny, "codex.notifyOnDeny")
+          : codexDefaults.notifyOnDeny
+    };
+  }
+
   return {
     project: { name: string(project.name, "project.name") },
     inherit,
@@ -119,6 +140,7 @@ export function parseConfig(raw: unknown): AgentctlConfig {
       opencode: runtime(runtimes, "opencode")
     },
     claude,
+    codex,
     sync: {
       permissions: bool(sync.permissions, "sync.permissions"),
       mcp: sync.mcp !== undefined ? bool(sync.mcp, "sync.mcp") : false,

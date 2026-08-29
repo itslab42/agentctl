@@ -1,5 +1,5 @@
 import { Permissions, PermissionValue } from "./permissions";
-import { ClaudeSettings } from "./config";
+import { ClaudeSettings, CodexSettings } from "./config";
 import { McpConfig } from "./mcp";
 
 /** A runtime config detected on disk. */
@@ -15,6 +15,7 @@ export interface DetectedRuntime {
 /** Options passed to adapter render methods. */
 export interface AdapterOptions {
   claude?: ClaudeSettings;
+  codex?: CodexSettings;
   mcp?: McpConfig;
 }
 

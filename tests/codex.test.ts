@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { renderCodexConfig, renderCodexHook } from "../src/adapters/codex";
+import { CodexSettings, codexDefaults } from "../src/config";
 import { Permissions, globToRegexSource } from "../src/permissions";
 
 const p: Permissions = {
@@ -22,6 +23,25 @@ test("Codex config uses native sandbox and approval settings", () => {
   assert.match(renderCodexConfig(p), /sandbox_mode = "workspace-write"/);
   const readonly = { ...p, filesystem: { edit: "ask" as const, write: "deny" as const } };
   assert.match(renderCodexConfig(readonly), /sandbox_mode = "read-only"/);
+});
+
+test("Codex keeps the sandbox read-only for interpreter-mediated writes when write is denied", () => {
+  const pythonAllowed: Permissions = {
+    ...p,
+    filesystem: { edit: "allow", write: "deny" },
+    shell: { default: "ask", allow: ["python*"], deny: [] }
+  };
+
+  assert.match(renderCodexConfig(pythonAllowed), /sandbox_mode = "read-only"/);
+});
+
+test("Codex fails closed when only filesystem writes are allowed", () => {
+  const mixedPolicy: Permissions = {
+    ...p,
+    filesystem: { edit: "deny", write: "allow" }
+  };
+
+  assert.match(renderCodexConfig(mixedPolicy), /sandbox_mode = "read-only"/);
 });
 
 test("Codex config maps shell.default=allow to auto (not never)", () => {
@@ -107,4 +127,87 @@ test("Codex hook deny takes precedence over allow", () => {
   });
   const result = JSON.parse(run.stdout);
   assert.equal(result.permissionDecision, "deny");
+});
+
+test("Codex hook honors shell deny when filesystem access is allowed", () => {
+  const perms: Permissions = {
+    policy: { precedence: "deny_over_allow" },
+    filesystem: { edit: "allow", write: "allow" },
+    shell: { default: "ask", allow: [], deny: ["rm -rf*"] }
+  };
+  const dir = mkdtempSync(join(tmpdir(), "agentctl-deny-priority-"));
+  const hook = join(dir, "policy.py");
+  writeFileSync(hook, renderCodexHook(perms));
+
+  const run = spawnSync("python3", [hook], {
+    input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "rm -rf /" } }),
+    encoding: "utf8"
+  });
+  const result = JSON.parse(run.stdout);
+  assert.equal(result.permissionDecision, "deny");
+  assert.match(result.permissionDecisionReason, /shell deny/);
+});
+
+// --- notifyOnDeny setting tests ---
+
+test("Codex hook logs to stderr when notifyOnDeny is true", () => {
+  const perms: Permissions = {
+    policy: { precedence: "deny_over_allow" },
+    filesystem: { edit: "allow", write: "deny" },
+    shell: { default: "ask", allow: [], deny: ["python*"] }
+  };
+  const settings: CodexSettings = { notifyOnDeny: true };
+  const dir = mkdtempSync(join(tmpdir(), "agentctl-notify-"));
+  const hook = join(dir, "policy.py");
+  writeFileSync(hook, renderCodexHook(perms, settings));
+
+  const run = spawnSync("python3", [hook], {
+    input: JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: 'python -c \'open("file.txt", "w").write("x")\'' }
+    }),
+    encoding: "utf8"
+  });
+  const result = JSON.parse(run.stdout);
+  assert.equal(result.permissionDecision, "deny");
+  assert.match(run.stderr, /\[agentctl\] denied:/);
+});
+
+test("Codex hook does not log to stderr when notifyOnDeny is false (default)", () => {
+  const perms: Permissions = {
+    policy: { precedence: "deny_over_allow" },
+    filesystem: { edit: "allow", write: "deny" },
+    shell: { default: "ask", allow: [], deny: ["python*"] }
+  };
+  const dir = mkdtempSync(join(tmpdir(), "agentctl-no-notify-"));
+  const hook = join(dir, "policy.py");
+  writeFileSync(hook, renderCodexHook(perms));
+
+  const run = spawnSync("python3", [hook], {
+    input: JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: 'python -c \'open("file.txt", "w").write("x")\'' }
+    }),
+    encoding: "utf8"
+  });
+  const result = JSON.parse(run.stdout);
+  assert.equal(result.permissionDecision, "deny");
+  assert.equal(run.stderr, "");
+});
+
+test("Codex hook renders NOTIFY_ON_DENY = True when notifyOnDeny setting is true", () => {
+  const settings: CodexSettings = { notifyOnDeny: true };
+  const hook = renderCodexHook(p, settings);
+  assert.match(hook, /NOTIFY_ON_DENY = True/);
+});
+
+test("Codex hook renders NOTIFY_ON_DENY = False by default", () => {
+  const hook = renderCodexHook(p);
+  assert.match(hook, /NOTIFY_ON_DENY = False/);
+});
+
+// --- codexDefaults ---
+
+test("codexDefaults has notifyOnDeny set to false", () => {
+  assert.equal(codexDefaults.notifyOnDeny, false);
 });

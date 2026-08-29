@@ -115,6 +115,28 @@ servers:
 
 Then `agentctl sync` renders the correct format for each runtime that supports MCP.
 
+## Feature Matrix
+
+| Feature                | Claude | Codex    | OpenCode | Cursor | Kiro |
+| ---------------------- | ------ | -------- | -------- | ------ | ---- |
+| Shell allow/deny       | ✓      | ✓ (hook) | ✓        | ✓      | ✓    |
+| Filesystem permissions | ✓      | ✓ (hook) | ✓        | ✓      | ✓    |
+| MCP servers            | ✓      | ✓¹       | ✓        | ✓      | ✓    |
+| Configurable settings  | ✓²     | ✓³       | —        | —      | —    |
+| Instructions sync      | ✓      | ✓        | ✓        | ✓      | ✓    |
+
+¹ Codex CLI supports MCP server configuration, but agentctl does not currently render it.
+² Claude settings: `alwaysThinkingEnabled`, `cleanupPeriodDays`, `disableTelemetry`.
+³ Codex settings: `notifyOnDeny` (log to stderr when hook blocks a command).
+
+### How filesystem enforcement works per runtime
+
+- **Claude**: Native `Edit`/`Write` permission entries in settings.json.
+- **Codex**: Native sandbox mode; `workspace-write` is used only when both edit and write are allowed, otherwise the sandbox is read-only.
+- **OpenCode**: Native `edit`/`write` permission fields in opencode.json.
+- **Cursor**: Filesystem permissions rendered in the MDC rule file.
+- **Kiro**: `fs_read`/`fs_write` rules in permissions.yaml.
+
 ## Development
 
 ```bash

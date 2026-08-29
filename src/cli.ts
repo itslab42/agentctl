@@ -43,6 +43,7 @@ function expected(root: string, source: Awaited<ReturnType<typeof loadSource>>):
 
     const rendered = adapter.render(source.permissions, {
       claude: runtimeName === "claude" ? source.config.claude : undefined,
+      codex: runtimeName === "codex" ? source.config.codex : undefined,
       mcp: mcpEnabled ? source.mcp : undefined
     });
 
