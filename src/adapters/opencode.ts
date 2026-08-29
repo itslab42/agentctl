@@ -17,19 +17,18 @@ function render(permissions: Permissions, mcp?: McpConfig): string {
     }
   };
   if (mcp) {
-    const mcpServers: Record<string, Record<string, unknown>> = {};
+    const servers: Record<string, Record<string, unknown>> = {};
     for (const [name, server] of Object.entries(mcp.servers)) {
-      const entry: Record<string, unknown> = {};
+      const entry: Record<string, unknown> =
+        server.transport === "stdio"
+          ? { type: "local", command: [server.command, ...(server.args ?? [])] }
+          : { type: "remote", url: server.url };
       if (server.transport === "stdio") {
-        entry.command = server.command;
-        if (server.args && server.args.length > 0) entry.args = server.args;
-      } else {
-        entry.url = server.url;
+        if (server.env && Object.keys(server.env).length > 0) entry.environment = server.env;
       }
-      if (server.env && Object.keys(server.env).length > 0) entry.env = server.env;
-      mcpServers[name] = entry;
+      servers[name] = entry;
     }
-    value.mcpServers = mcpServers;
+    value.mcp = servers;
   }
   return `${JSON.stringify(value, null, 2)}\n`;
 }

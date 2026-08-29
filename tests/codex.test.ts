@@ -25,6 +25,25 @@ test("Codex config uses native sandbox and approval settings", () => {
   assert.match(renderCodexConfig(readonly), /sandbox_mode = "read-only"/);
 });
 
+test("Codex keeps the sandbox read-only for interpreter-mediated writes when write is denied", () => {
+  const pythonAllowed: Permissions = {
+    ...p,
+    filesystem: { edit: "allow", write: "deny" },
+    shell: { default: "ask", allow: ["python*"], deny: [] }
+  };
+
+  assert.match(renderCodexConfig(pythonAllowed), /sandbox_mode = "read-only"/);
+});
+
+test("Codex fails closed when only filesystem writes are allowed", () => {
+  const mixedPolicy: Permissions = {
+    ...p,
+    filesystem: { edit: "deny", write: "allow" }
+  };
+
+  assert.match(renderCodexConfig(mixedPolicy), /sandbox_mode = "read-only"/);
+});
+
 test("Codex config maps shell.default=allow to auto (not never)", () => {
   const allowAll: Permissions = {
     ...p,
@@ -110,118 +129,7 @@ test("Codex hook deny takes precedence over allow", () => {
   assert.equal(result.permissionDecision, "deny");
 });
 
-// --- Filesystem deny enforcement tests ---
-
-test("Codex hook denies file-write commands when filesystem.write is deny", () => {
-  const fsWriteDeny: Permissions = {
-    policy: { precedence: "deny_over_allow" },
-    filesystem: { edit: "allow", write: "deny" },
-    shell: { default: "ask", allow: [], deny: [] }
-  };
-  const dir = mkdtempSync(join(tmpdir(), "agentctl-fs-write-"));
-  const hook = join(dir, "policy.py");
-  writeFileSync(hook, renderCodexHook(fsWriteDeny));
-
-  const writeCommands = [
-    "echo hello > output.txt",
-    "tee /tmp/file.txt",
-    "cp src/a.ts src/b.ts",
-    "mv old.txt new.txt",
-    "rm -rf build/",
-    "mkdir -p /tmp/newdir",
-    "chmod 755 script.sh",
-    "chown user:group file.txt",
-    "ln -s target link",
-    "touch newfile.txt"
-  ];
-
-  for (const command of writeCommands) {
-    const run = spawnSync("python3", [hook], {
-      input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
-      encoding: "utf8"
-    });
-    const result = JSON.parse(run.stdout);
-    assert.equal(result.permissionDecision, "deny", `expected deny for write command: ${command}`);
-    assert.match(result.permissionDecisionReason, /filesystem write deny/);
-  }
-});
-
-test("Codex hook allows file-write commands when filesystem.write is allow", () => {
-  const dir = mkdtempSync(join(tmpdir(), "agentctl-fs-allow-"));
-  const hook = join(dir, "policy.py");
-  // p has filesystem.write = "allow" so write commands should NOT be blocked by fs policy
-  writeFileSync(hook, renderCodexHook(p));
-
-  const writeCommands = ["touch newfile.txt", "mkdir -p /tmp/dir"];
-  for (const command of writeCommands) {
-    const run = spawnSync("python3", [hook], {
-      input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
-      encoding: "utf8"
-    });
-    // Should not be denied (no shell deny pattern matches, and fs write is allowed)
-    if (run.stdout.trim()) {
-      const result = JSON.parse(run.stdout);
-      assert.notEqual(
-        result.permissionDecision,
-        "deny",
-        `should not deny write command when fs.write=allow: ${command}`
-      );
-    }
-  }
-});
-
-test("Codex hook denies edit-in-place commands when filesystem.edit is deny", () => {
-  const fsEditDeny: Permissions = {
-    policy: { precedence: "deny_over_allow" },
-    filesystem: { edit: "deny", write: "allow" },
-    shell: { default: "ask", allow: [], deny: [] }
-  };
-  const dir = mkdtempSync(join(tmpdir(), "agentctl-fs-edit-"));
-  const hook = join(dir, "policy.py");
-  writeFileSync(hook, renderCodexHook(fsEditDeny));
-
-  const editCommands = [
-    "sed -i 's/old/new/g' file.txt",
-    "perl -ip -e 's/foo/bar/' file.pl",
-    "patch < fix.diff"
-  ];
-
-  for (const command of editCommands) {
-    const run = spawnSync("python3", [hook], {
-      input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
-      encoding: "utf8"
-    });
-    const result = JSON.parse(run.stdout);
-    assert.equal(result.permissionDecision, "deny", `expected deny for edit command: ${command}`);
-    assert.match(result.permissionDecisionReason, /filesystem edit deny/);
-  }
-});
-
-test("Codex hook does not deny read-only commands when filesystem.write is deny", () => {
-  const fsWriteDeny: Permissions = {
-    policy: { precedence: "deny_over_allow" },
-    filesystem: { edit: "allow", write: "deny" },
-    shell: { default: "ask", allow: ["cat*", "ls*", "grep*"], deny: [] }
-  };
-  const dir = mkdtempSync(join(tmpdir(), "agentctl-fs-read-"));
-  const hook = join(dir, "policy.py");
-  writeFileSync(hook, renderCodexHook(fsWriteDeny));
-
-  const readCommands = ["cat file.txt", "ls -la", "grep -r pattern ."];
-  for (const command of readCommands) {
-    const run = spawnSync("python3", [hook], {
-      input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
-      encoding: "utf8"
-    });
-    if (run.stdout.trim()) {
-      const result = JSON.parse(run.stdout);
-      assert.equal(result.permissionDecision, "allow", `should allow read command: ${command}`);
-    }
-  }
-});
-
-test("Codex hook shell deny takes precedence over filesystem checks", () => {
-  // If a command is in shell deny, it should be denied even if filesystem allows
+test("Codex hook honors shell deny when filesystem access is allowed", () => {
   const perms: Permissions = {
     policy: { precedence: "deny_over_allow" },
     filesystem: { edit: "allow", write: "allow" },
@@ -246,7 +154,7 @@ test("Codex hook logs to stderr when notifyOnDeny is true", () => {
   const perms: Permissions = {
     policy: { precedence: "deny_over_allow" },
     filesystem: { edit: "allow", write: "deny" },
-    shell: { default: "ask", allow: [], deny: [] }
+    shell: { default: "ask", allow: [], deny: ["python*"] }
   };
   const settings: CodexSettings = { notifyOnDeny: true };
   const dir = mkdtempSync(join(tmpdir(), "agentctl-notify-"));
@@ -254,7 +162,10 @@ test("Codex hook logs to stderr when notifyOnDeny is true", () => {
   writeFileSync(hook, renderCodexHook(perms, settings));
 
   const run = spawnSync("python3", [hook], {
-    input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "touch file.txt" } }),
+    input: JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: 'python -c \'open("file.txt", "w").write("x")\'' }
+    }),
     encoding: "utf8"
   });
   const result = JSON.parse(run.stdout);
@@ -266,49 +177,22 @@ test("Codex hook does not log to stderr when notifyOnDeny is false (default)", (
   const perms: Permissions = {
     policy: { precedence: "deny_over_allow" },
     filesystem: { edit: "allow", write: "deny" },
-    shell: { default: "ask", allow: [], deny: [] }
+    shell: { default: "ask", allow: [], deny: ["python*"] }
   };
   const dir = mkdtempSync(join(tmpdir(), "agentctl-no-notify-"));
   const hook = join(dir, "policy.py");
   writeFileSync(hook, renderCodexHook(perms));
 
   const run = spawnSync("python3", [hook], {
-    input: JSON.stringify({ tool_name: "Bash", tool_input: { command: "touch file.txt" } }),
+    input: JSON.stringify({
+      tool_name: "Bash",
+      tool_input: { command: 'python -c \'open("file.txt", "w").write("x")\'' }
+    }),
     encoding: "utf8"
   });
   const result = JSON.parse(run.stdout);
   assert.equal(result.permissionDecision, "deny");
   assert.equal(run.stderr, "");
-});
-
-// --- Hook renders FS_WRITE_DENIED / FS_EDIT_DENIED flags ---
-
-test("Codex hook renders FS_WRITE_DENIED = True when filesystem.write is deny", () => {
-  const perms: Permissions = {
-    policy: { precedence: "deny_over_allow" },
-    filesystem: { edit: "allow", write: "deny" },
-    shell: { default: "ask", allow: [], deny: [] }
-  };
-  const hook = renderCodexHook(perms);
-  assert.match(hook, /FS_WRITE_DENIED = True/);
-  assert.match(hook, /FS_EDIT_DENIED = False/);
-});
-
-test("Codex hook renders FS_EDIT_DENIED = True when filesystem.edit is deny", () => {
-  const perms: Permissions = {
-    policy: { precedence: "deny_over_allow" },
-    filesystem: { edit: "deny", write: "allow" },
-    shell: { default: "ask", allow: [], deny: [] }
-  };
-  const hook = renderCodexHook(perms);
-  assert.match(hook, /FS_WRITE_DENIED = False/);
-  assert.match(hook, /FS_EDIT_DENIED = True/);
-});
-
-test("Codex hook renders both FS flags as False when filesystem is fully allowed", () => {
-  const hook = renderCodexHook(p);
-  assert.match(hook, /FS_WRITE_DENIED = False/);
-  assert.match(hook, /FS_EDIT_DENIED = False/);
 });
 
 test("Codex hook renders NOTIFY_ON_DENY = True when notifyOnDeny setting is true", () => {

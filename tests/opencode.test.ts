@@ -40,7 +40,7 @@ test("OpenCode includes _generatedBy marker", () => {
 
 // --- MCP server config tests ---
 
-test("OpenCode includes mcpServers when mcp config is provided", () => {
+test("OpenCode includes local MCP servers in the native shape", () => {
   const p: Permissions = {
     policy: { precedence: "deny_over_allow" },
     filesystem: { edit: "allow", write: "allow" },
@@ -56,24 +56,25 @@ test("OpenCode includes mcpServers when mcp config is provided", () => {
     }
   };
   const parsed = JSON.parse(renderOpenCode(p, mcp));
-  assert.ok(parsed.mcpServers, "must include mcpServers");
-  assert.equal(Object.keys(parsed.mcpServers).length, 1);
-  assert.equal(parsed.mcpServers.filesystem.command, "npx");
-  assert.deepEqual(parsed.mcpServers.filesystem.args, [
+  assert.ok(parsed.mcp, "must include mcp");
+  assert.equal(Object.keys(parsed.mcp).length, 1);
+  assert.equal(parsed.mcp.filesystem.type, "local");
+  assert.deepEqual(parsed.mcp.filesystem.command, [
+    "npx",
     "-y",
     "@modelcontextprotocol/server-filesystem",
     "/tmp"
   ]);
 });
 
-test("OpenCode omits mcpServers when mcp config is undefined", () => {
+test("OpenCode omits mcp when mcp config is undefined", () => {
   const p: Permissions = {
     policy: { precedence: "deny_over_allow" },
     filesystem: { edit: "allow", write: "allow" },
     shell: { default: "ask", allow: [], deny: [] }
   };
   const parsed = JSON.parse(renderOpenCode(p));
-  assert.equal(parsed.mcpServers, undefined);
+  assert.equal(parsed.mcp, undefined);
 });
 
 test("OpenCode renders streamable-http server with url", () => {
@@ -91,8 +92,9 @@ test("OpenCode renders streamable-http server with url", () => {
     }
   };
   const parsed = JSON.parse(renderOpenCode(p, mcp));
-  assert.equal(parsed.mcpServers["my-api"].url, "http://localhost:3001/mcp");
-  assert.equal(parsed.mcpServers["my-api"].command, undefined);
+  assert.equal(parsed.mcp["my-api"].type, "remote");
+  assert.equal(parsed.mcp["my-api"].url, "http://localhost:3001/mcp");
+  assert.equal(parsed.mcp["my-api"].command, undefined);
 });
 
 test("OpenCode includes env in MCP server when present", () => {
@@ -112,7 +114,7 @@ test("OpenCode includes env in MCP server when present", () => {
     }
   };
   const parsed = JSON.parse(renderOpenCode(p, mcp));
-  assert.deepEqual(parsed.mcpServers.github.env, { GITHUB_TOKEN: "${GITHUB_TOKEN}" });
+  assert.deepEqual(parsed.mcp.github.environment, { GITHUB_TOKEN: "${GITHUB_TOKEN}" });
 });
 
 test("OpenCode omits env from MCP server when not present", () => {
@@ -130,10 +132,10 @@ test("OpenCode omits env from MCP server when not present", () => {
     }
   };
   const parsed = JSON.parse(renderOpenCode(p, mcp));
-  assert.equal(parsed.mcpServers.simple.env, undefined);
+  assert.equal(parsed.mcp.simple.environment, undefined);
 });
 
-test("OpenCode omits args from MCP server when empty", () => {
+test("OpenCode renders only the executable when MCP args are empty", () => {
   const p: Permissions = {
     policy: { precedence: "deny_over_allow" },
     filesystem: { edit: "allow", write: "allow" },
@@ -149,7 +151,7 @@ test("OpenCode omits args from MCP server when empty", () => {
     }
   };
   const parsed = JSON.parse(renderOpenCode(p, mcp));
-  assert.equal(parsed.mcpServers.simple.args, undefined);
+  assert.deepEqual(parsed.mcp.simple.command, ["my-server"]);
 });
 
 test("OpenCode renders multiple MCP servers", () => {
@@ -172,9 +174,13 @@ test("OpenCode renders multiple MCP servers", () => {
     }
   };
   const parsed = JSON.parse(renderOpenCode(p, mcp));
-  assert.equal(Object.keys(parsed.mcpServers).length, 2);
-  assert.equal(parsed.mcpServers.filesystem.command, "npx");
-  assert.equal(parsed.mcpServers["my-api"].url, "http://localhost:3001/mcp");
+  assert.equal(Object.keys(parsed.mcp).length, 2);
+  assert.deepEqual(parsed.mcp.filesystem.command, [
+    "npx",
+    "-y",
+    "@modelcontextprotocol/server-filesystem"
+  ]);
+  assert.equal(parsed.mcp["my-api"].url, "http://localhost:3001/mcp");
 });
 
 test("OpenCode output is deterministic", () => {

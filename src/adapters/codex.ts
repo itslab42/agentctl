@@ -7,7 +7,7 @@ const PATHS = [".codex/config.toml", ".codex/hooks/permission-policy.py"];
 
 function renderConfig(permissions: Permissions): string {
   const writable =
-    permissions.filesystem.edit === "allow" || permissions.filesystem.write === "allow";
+    permissions.filesystem.edit === "allow" && permissions.filesystem.write === "allow";
   const approval =
     permissions.shell.default === "ask"
       ? "on-request"
@@ -20,8 +20,6 @@ function renderConfig(permissions: Permissions): string {
 function renderHook(permissions: Permissions, settings: CodexSettings = codexDefaults): string {
   const denyPatterns = permissions.shell.deny.map(globToRegexSource);
   const allowPatterns = permissions.shell.allow.map(globToRegexSource);
-  const fsWriteDenied = permissions.filesystem.write === "deny";
-  const fsEditDenied = permissions.filesystem.edit === "deny";
   const notifyOnDeny = settings.notifyOnDeny;
 
   return `#!/usr/bin/env python3
@@ -35,40 +33,7 @@ DENY_PATTERNS = ${JSON.stringify(denyPatterns, null, 2)}
 
 ALLOW_PATTERNS = ${JSON.stringify(allowPatterns, null, 2)}
 
-# Filesystem permission enforcement
-FS_WRITE_DENIED = ${fsWriteDenied ? "True" : "False"}
-FS_EDIT_DENIED = ${fsEditDenied ? "True" : "False"}
 NOTIFY_ON_DENY = ${notifyOnDeny ? "True" : "False"}
-
-# Patterns that indicate file-write operations in shell commands
-WRITE_COMMAND_PATTERNS = [
-    r"\\b(tee|dd|install)\\b",
-    r">",
-    r"\\bcp\\b",
-    r"\\bmv\\b",
-    r"\\brm\\b",
-    r"\\bmkdir\\b",
-    r"\\bchmod\\b",
-    r"\\bchown\\b",
-    r"\\bln\\b",
-    r"\\btouch\\b",
-]
-
-EDIT_COMMAND_PATTERNS = [
-    r"\\bsed\\b.*-i",
-    r"\\bperl\\b.*-[ip]",
-    r"\\bpatch\\b",
-]
-
-
-def is_write_command(command: str) -> bool:
-    """Check if a shell command would write to the filesystem."""
-    return any(re.search(pattern, command) for pattern in WRITE_COMMAND_PATTERNS)
-
-
-def is_edit_command(command: str) -> bool:
-    """Check if a shell command would edit existing files in-place."""
-    return any(re.search(pattern, command) for pattern in EDIT_COMMAND_PATTERNS)
 
 
 def deny(reason: str) -> None:
@@ -88,13 +53,6 @@ def main() -> None:
     command = invocation.get("tool_input", {}).get("command", "")
     if any(re.match(pattern, command) for pattern in DENY_PATTERNS):
         deny("Blocked by agentctl shell deny policy")
-        return
-    # Filesystem permission enforcement: deny write/edit commands when policy forbids them
-    if FS_WRITE_DENIED and is_write_command(command):
-        deny("Blocked by agentctl filesystem write deny policy")
-        return
-    if FS_EDIT_DENIED and is_edit_command(command):
-        deny("Blocked by agentctl filesystem edit deny policy")
         return
     if any(re.match(pattern, command) for pattern in ALLOW_PATTERNS):
         print(json.dumps({"permissionDecision": "allow", "permissionDecisionReason": "Approved by agentctl shell allow policy"}))
