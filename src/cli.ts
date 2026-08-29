@@ -273,6 +273,14 @@ function isRunViaNpx(root: string): boolean {
   return !existsSync(resolve(root, "node_modules", "@lab42", "agentctl"));
 }
 
+/**
+ * Initializes project-level or user-level agent-runtime configuration.
+ *
+ * Supports permission presets, optional pre-commit hooks, and Git ignore updates.
+ * Refuses to overwrite an existing configuration directory.
+ *
+ * @param root - The project root directory.
+ */
 async function runInit(root: string): Promise<void> {
   const args = process.argv.slice(3);
 
@@ -468,6 +476,12 @@ async function runScan(root: string): Promise<void> {
   console.log("  .ai/permissions.yaml");
 }
 
+/**
+ * Adds or removes shell permission patterns and optionally synchronizes generated runtime files.
+ *
+ * @param root - The project root directory.
+ * @param command - The mutation command: `allow`, `deny`, `add`, or `remove`.
+ */
 async function runMutate(root: string, command: string): Promise<void> {
   const args = process.argv.slice(3);
   const dryRun = args.includes("--dry-run");
@@ -627,6 +641,9 @@ async function runWatch(root: string): Promise<void> {
   await new Promise(() => {});
 }
 
+/**
+ * Synchronizes generated runtime files with the loaded project configuration.
+ */
 async function doSync(root: string): Promise<void> {
   try {
     const source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
@@ -943,7 +960,7 @@ function getAllResults(
 /**
  * Runs the command-line interface and dispatches the requested operation.
  *
- * Reports invalid commands and configuration failures through process exit codes.
+ * Reports invalid commands, configuration failures, and configuration drift through process exit codes.
  */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);

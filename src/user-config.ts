@@ -17,11 +17,10 @@ export function getUserConfigDir(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 /**
- * Determines whether the user-level config should be loaded and merged.
- * Returns false when:
- * - options.noUser is true (--no-user flag)
- * - options.inherit is false (project config sets inherit: false)
- * - AGENTCTL_NO_USER=1 environment variable is set
+ * Determines whether user-level configuration should be applied.
+ *
+ * @param options - Options that can disable user configuration or inheritance.
+ * @returns `true` when user configuration is enabled, `false` when disabled by the options or `AGENTCTL_NO_USER=1`.
  */
 export function shouldUseUserConfig(
   options: { noUser?: boolean; inherit?: boolean } = {},
@@ -34,8 +33,11 @@ export function shouldUseUserConfig(
 }
 
 /**
- * Loads and parses ~/.ai/permissions.yaml.
- * Returns undefined if the file does not exist or noUser is true.
+ * Loads user permission settings from `permissions.yaml`.
+ *
+ * @param options - Controls whether user configuration is disabled with `noUser`.
+ * @param env - Environment variables used to locate the user configuration directory.
+ * @returns Parsed permissions, or `undefined` when user configuration is disabled or unavailable.
  */
 export async function loadUserPermissions(
   options: { noUser?: boolean } = {},
@@ -62,8 +64,10 @@ export async function loadUserPermissions(
 }
 
 /**
- * Loads and parses ~/.ai/config.yaml for settings defaults.
- * Returns undefined if the file does not exist or noUser is true.
+ * Loads user configuration settings from `config.yaml`.
+ *
+ * @param options - Options controlling whether user configuration is disabled
+ * @returns The parsed configuration mapping, or `undefined` if user configuration is disabled, unavailable, unreadable, invalid, or not a mapping
  */
 export async function loadUserConfig(
   options: { noUser?: boolean } = {},

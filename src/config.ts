@@ -65,6 +65,12 @@ function runtime(raw: Record<string, unknown>, name: string): { enabled: boolean
   return { enabled };
 }
 
+/**
+ * Parses and validates raw configuration data into an `AgentctlConfig`.
+ *
+ * @param raw - The raw configuration value to validate
+ * @returns The validated configuration with defaults applied
+ */
 export function parseConfig(raw: unknown): AgentctlConfig {
   const root = object(raw, "config");
   const project = object(root.project, "project");
@@ -211,12 +217,12 @@ export function overlayPathFor(permissionsPath: string, env: string): string {
 }
 
 /**
- * Loads and validates project configuration and permissions for the active environment.
+ * Loads project configuration, permissions, and optional integrations for the active environment.
  *
  * @param root - The project root directory
- * @param options - Optional environment selection and user config control
- * @returns The parsed configuration, environment-specific permissions, optional MCP and instruction data, and active environment
- * @throws Error if a required configuration file is unavailable or contains invalid data
+ * @param options - Optional environment selection and user-level permission inheritance control
+ * @returns The parsed configuration, effective permissions, optional MCP and instruction data, and active environment
+ * @throws Error if a required file is unavailable or contains invalid data
  */
 export async function loadSource(
   root: string,
