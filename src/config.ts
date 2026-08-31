@@ -18,6 +18,12 @@ import {
   loadUserPermissions,
   mergeUserPermissions
 } from "./user-config";
+import {
+  InheritOptions,
+  resolveExtends,
+  mergeInheritedPermissions,
+  denyListWarning
+} from "./inherit";
 
 export interface ClaudeSettings {
   alwaysThinkingEnabled: boolean;
@@ -42,6 +48,12 @@ export const codexDefaults: CodexSettings = {
 
 export interface AgentctlConfig {
   project: { name: string };
+  /**
+   * Optional base policy to inherit from. May be an HTTPS URL, an npm package
+   * path (`@scope/pkg/path.yaml`), or a local file path. Local permissions are
+   * merged on top and can only tighten, never weaken, the inherited policy.
+   */
+  extends?: string;
   inherit?: boolean;
   runtimes: Record<"claude" | "codex" | "cursor" | "kiro" | "opencode", { enabled: boolean }>;
   claude: ClaudeSettings;
@@ -99,6 +111,15 @@ export function parseConfig(raw: unknown): AgentctlConfig {
     inherit = bool(root.inherit, "inherit");
   }
 
+  // Parse optional extends field (base policy to inherit from)
+  let extendsTarget: string | undefined;
+  if (root.extends !== undefined) {
+    extendsTarget = string(root.extends, "extends");
+    if (extendsTarget.trim().length === 0) {
+      throw new Error("extends must be a non-empty string");
+    }
+  }
+
   let claude: ClaudeSettings = { ...claudeDefaults };
   if (root.claude) {
     const c = object(root.claude, "claude");
@@ -131,6 +152,7 @@ export function parseConfig(raw: unknown): AgentctlConfig {
 
   return {
     project: { name: string(project.name, "project.name") },
+    extends: extendsTarget,
     inherit,
     runtimes: {
       claude: runtime(runtimes, "claude"),
@@ -287,13 +309,19 @@ export function overlayPathFor(permissionsPath: string, env: string): string {
  */
 export async function loadSource(
   root: string,
-  options: { env?: string; noUser?: boolean } = {}
+  options: {
+    env?: string;
+    noUser?: boolean;
+    inherit?: InheritOptions;
+  } = {}
 ): Promise<{
   config: AgentctlConfig;
   permissions: Permissions;
   mcp?: McpConfig;
   instructions?: Instructions;
   env: string;
+  inheritedFrom?: string;
+  inheritanceWarnings?: string[];
 }> {
   const activeEnv = resolveEnv(options.env);
   const configPath = resolve(root, ".ai/config.yaml");
@@ -350,6 +378,21 @@ export async function loadSource(
     }
   }
 
+  // Resolve an inherited base policy (extends). The inherited policy is the
+  // baseline; the local (user + project) permissions are merged on top and can
+  // only tighten — never weaken — the inherited baseline.
+  let inheritedFrom: string | undefined;
+  const inheritanceWarnings: string[] = [];
+  if (config.extends) {
+    const configDir = dirname(configPath);
+    const base = await resolveExtends(config.extends, configDir, options.inherit ?? {});
+    const merged = mergeInheritedPermissions(base, permissions);
+    const warning = denyListWarning(base, merged);
+    if (warning) inheritanceWarnings.push(warning);
+    permissions = merged;
+    inheritedFrom = config.extends;
+  }
+
   // Apply an environment overlay if a matching file exists. A missing overlay
   // for the active environment is not an error — the base permissions are used.
   const overlayPath = overlayPathFor(permissionsPath, activeEnv);
@@ -390,5 +433,13 @@ export async function loadSource(
     instructions = await loadInstructions(root, config.files.instructions);
   }
 
-  return { config, permissions, mcp, instructions, env: activeEnv };
+  return {
+    config,
+    permissions,
+    mcp,
+    instructions,
+    env: activeEnv,
+    inheritedFrom,
+    inheritanceWarnings: inheritanceWarnings.length > 0 ? inheritanceWarnings : undefined
+  };
 }

@@ -112,3 +112,27 @@ test("parseConfig rejects invalid claude field types", () => {
     /claude\.alwaysThinkingEnabled must be a boolean/
   );
 });
+
+test("parseConfig parses extends field", () => {
+  const config = parseConfig({
+    ...full,
+    extends: "https://example.com/policy.yaml"
+  });
+  assert.equal(config.extends, "https://example.com/policy.yaml");
+});
+
+test("parseConfig allows omitting extends", () => {
+  const config = parseConfig(full);
+  assert.equal(config.extends, undefined);
+});
+
+test("parseConfig rejects non-string extends", () => {
+  assert.throws(() => parseConfig({ ...full, extends: 42 }), /extends must be a string/);
+});
+
+test("parseConfig rejects empty extends", () => {
+  assert.throws(
+    () => parseConfig({ ...full, extends: "  " }),
+    /extends must be a non-empty string/
+  );
+});

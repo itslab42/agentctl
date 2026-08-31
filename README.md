@@ -115,6 +115,39 @@ servers:
 
 Then `agentctl sync` renders the correct format for each runtime that supports MCP.
 
+## Policy Inheritance (`extends`)
+
+Share a canonical security baseline across many repos. Point `extends` in `.ai/config.yaml` at a base policy — an HTTPS URL, an npm package path, or a local file — and your local `permissions.yaml` is merged on top.
+
+```yaml
+# .ai/config.yaml
+extends: "https://raw.githubusercontent.com/myorg/policies/main/.ai/permissions.yaml"
+# or an npm package path
+# extends: "@myorg/agent-policy/permissions.yaml"
+# or a local file
+# extends: "../shared/.ai/permissions.yaml"
+
+project:
+  name: my-app
+runtimes:
+  claude:
+    enabled: true
+```
+
+**Local can only tighten, never weaken the baseline:**
+
+- `shell.deny` — union of base + local (local can add denials).
+- `shell.allow` — local allows are kept only if the base also allows them (local cannot broaden).
+- `filesystem` / `shell.default` — the stricter of base and local wins.
+
+**Remote policies are cached** in `.ai/.cache/` with a 24h TTL and conditional (ETag / Last-Modified) revalidation:
+
+- `agentctl sync --refresh` — force a re-fetch.
+- `agentctl sync --offline` — use the cache only (for CI without network).
+- `agentctl sync --no-remote` — disable all remote fetching (airgapped).
+
+**Safeguards:** only HTTPS URLs are allowed (HTTP is rejected), fetched content is validated before use, circular `extends` are detected, and nesting is capped at 3 levels. `agentctl validate` reports the inherited source; `agentctl status` shows the `extends` target and cache freshness.
+
 ## Feature Matrix
 
 | Feature                | Claude | Codex    | OpenCode | Cursor | Kiro |
