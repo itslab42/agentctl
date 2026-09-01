@@ -99,6 +99,96 @@ shell:
 A pattern cannot appear in both `allow` and `deny` — agentctl rejects contradictory
 lists.
 
+### Extended schema (v2)
+
+Adding `version: 2` opts into a richer permission model with path-level filesystem
+rules and new `network`, `env`, and `mcp` sections. Files **without** a `version`
+field (or with `version: 1`) keep the v1 behavior unchanged — v2 is fully opt-in and
+backwards compatible.
+
+```yaml
+version: 2
+policy:
+  precedence: deny_over_allow
+
+# Path-level filesystem rules. Each of read/write is a capability block.
+filesystem:
+  read:
+    default: allow
+    deny:
+      - ".env*"
+      - "**/*.pem"
+      - "**/secrets/**"
+  write:
+    default: allow
+    ask:
+      - "*.config.*"
+      - "tsconfig.json"
+    deny:
+      - "package-lock.json"
+      - ".git/**"
+
+shell:
+  default: ask
+  allow: ["pnpm *"]
+  deny: ["rm -rf *"]
+
+network:
+  default: ask
+  allow:
+    - "https://registry.npmjs.org/*"
+    - "*://api.github.com/*"
+  deny:
+    - "http://*"
+
+env:
+  default: deny
+  allow: ["NODE_ENV", "GITHUB_*"]
+  deny: ["*_TOKEN", "*_KEY"]
+
+mcp:
+  default: ask
+  allow: ["filesystem:*", "postgres:query"]
+  deny: ["postgres:drop_table"]
+```
+
+Every capability block (`filesystem.read`, `filesystem.write`, `network`, `env`,
+`mcp`) shares the same shape and is evaluated with **deny-over-allow** precedence:
+
+1. matches a `deny` pattern → **deny**
+2. matches an `ask` pattern → **ask**
+3. matches an `allow` pattern → **allow**
+4. otherwise → the block's `default`
+
+| Section            | Pattern form                       | Validation                                       |
+| ------------------ | ---------------------------------- | ------------------------------------------------ |
+| `filesystem.read`  | path globs                         | —                                                |
+| `filesystem.write` | path globs (scalar still accepted) | —                                                |
+| `network`          | URL globs                          | must start with `https://`, `http://`, or `*://` |
+| `env`              | env var name globs                 | names only — no `=`                              |
+| `mcp`              | `<server>:<tool>` or `<server>:*`  | must match the `server:tool` form                |
+
+A pattern cannot appear in more than one of `allow` / `deny` / `ask` within the same
+capability. When a v2 file uses `filesystem.read` / `filesystem.write` blocks, the
+`default` of each is also exposed as the legacy blanket scalar so existing adapters
+continue to work.
+
+#### Runtime support
+
+Not every runtime can enforce every capability. Where a runtime cannot, agentctl
+emits an advisory comment rather than silently dropping the policy.
+
+| Capability         | Kiro                     |
+| ------------------ | ------------------------ |
+| `filesystem.read`  | `fs_read` rules          |
+| `filesystem.write` | `fs_write` rules         |
+| `network`          | `web_search`/`web_fetch` |
+| `env`              | advisory comment         |
+| `mcp`              | `mcp` capability rules   |
+
+The Kiro adapter is the reference implementation for v2. Other adapters gain support
+in follow-up work.
+
 ## `.ai/mcp.yaml`
 
 Declare [Model Context Protocol](https://modelcontextprotocol.io) servers once;

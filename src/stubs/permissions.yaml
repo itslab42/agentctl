@@ -10,3 +10,52 @@ shell:
   default: ask
   allow: []
   deny: []
+
+# --- v2 (opt-in) -------------------------------------------------------------
+# Add `version: 2` at the top of this file to enable the extended schema below.
+# v1 files (no `version`) keep working unchanged. Uncomment to adopt:
+#
+# version: 2
+#
+# # Path-level filesystem rules (deny → ask → allow → default):
+# filesystem:
+#   read:
+#     default: allow
+#     deny:
+#       - ".env*"
+#       - "**/*.pem"
+#       - "**/secrets/**"
+#   write:
+#     default: allow
+#     ask:
+#       - "*.config.*"
+#     deny:
+#       - ".git/**"
+#
+# # Network access (URL glob patterns, must start with a protocol or *://):
+# network:
+#   default: ask
+#   allow:
+#     - "https://registry.npmjs.org/*"
+#     - "https://api.github.com/*"
+#   deny:
+#     - "http://*"
+#
+# # Environment variable access (name patterns only):
+# env:
+#   default: deny
+#   allow:
+#     - "NODE_ENV"
+#     - "GITHUB_*"
+#   deny:
+#     - "*_TOKEN"
+#     - "*_KEY"
+#
+# # MCP tool access (<server>:<tool> or <server>:*):
+# mcp:
+#   default: ask
+#   allow:
+#     - "filesystem:*"
+#     - "postgres:query"
+#   deny:
+#     - "postgres:drop_table"
