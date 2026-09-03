@@ -230,6 +230,15 @@ export function parsePermissions(raw: unknown): Permissions {
   const readIsBlock = filesystem.read !== undefined && typeof filesystem.read === "object";
   const writeIsBlock = filesystem.write !== undefined && typeof filesystem.write === "object";
 
+  const v2Fields = [
+    ...(readIsBlock ? ["filesystem.read capability block"] : []),
+    ...(writeIsBlock ? ["filesystem.write capability block"] : []),
+    ...(["network", "env", "mcp"] as const).filter((field) => root[field] !== undefined)
+  ];
+  if (version !== 2 && v2Fields.length > 0) {
+    throw new Error(`version: 2 is required for ${v2Fields.join(", ")}`);
+  }
+
   if (readIsBlock) {
     fsRead = capability(filesystem.read, "filesystem.read");
   }
@@ -239,6 +248,10 @@ export function parsePermissions(raw: unknown): Permissions {
 
   if (typeof filesystem.edit === "string") {
     editScalar = permission(filesystem.edit, "filesystem.edit");
+  }
+  if (typeof filesystem.read === "string") {
+    const readScalar = permission(filesystem.read, "filesystem.read");
+    if (editScalar === undefined) editScalar = readScalar;
   }
   if (typeof filesystem.write === "string") {
     writeScalar = permission(filesystem.write, "filesystem.write");
@@ -357,6 +370,30 @@ function stricter(base: PermissionValue, overlay: PermissionValue): PermissionVa
   return strictness[overlay] > strictness[base] ? overlay : base;
 }
 
+/** Applies a blanket scalar restriction to every outcome in a path capability. */
+function tightenCapability(
+  base: CapabilityPermissions,
+  overlay: PermissionValue
+): CapabilityPermissions {
+  if (overlay === "deny") {
+    return { default: "deny", allow: [], ask: [], deny: [...base.deny] };
+  }
+  if (overlay === "ask") {
+    return {
+      default: stricter(base.default, overlay),
+      allow: [],
+      ask: [...new Set([...base.ask, ...base.allow])],
+      deny: [...base.deny]
+    };
+  }
+  return {
+    default: base.default,
+    allow: [...base.allow],
+    ask: [...base.ask],
+    deny: [...base.deny]
+  };
+}
+
 /**
  * Merges an environment-specific permission overlay into a base permission set while preserving or tightening its restrictions.
  *
@@ -372,16 +409,26 @@ export function mergeOverlay(base: Permissions, overlay: PermissionsOverlay): Pe
     shell: { ...base.shell, allow: [...base.shell.allow], deny: [...base.shell.deny] }
   };
 
-  // v2 capability sections are carried through unchanged (overlays currently
-  // only tighten the v1 filesystem scalars and shell patterns).
+  // Top-level v2 capability sections are carried through unchanged.
   if (base.network) merged.network = base.network;
   if (base.env) merged.env = base.env;
   if (base.mcp) merged.mcp = base.mcp;
 
-  if (overlay.filesystem?.edit !== undefined)
+  if (overlay.filesystem?.edit !== undefined) {
     merged.filesystem.edit = stricter(base.filesystem.edit, overlay.filesystem.edit);
-  if (overlay.filesystem?.write !== undefined)
+    if (base.filesystem.read) {
+      merged.filesystem.read = tightenCapability(base.filesystem.read, overlay.filesystem.edit);
+    }
+  }
+  if (overlay.filesystem?.write !== undefined) {
     merged.filesystem.write = stricter(base.filesystem.write, overlay.filesystem.write);
+    if (base.filesystem.writePaths) {
+      merged.filesystem.writePaths = tightenCapability(
+        base.filesystem.writePaths,
+        overlay.filesystem.write
+      );
+    }
+  }
 
   if (overlay.shell?.default !== undefined)
     merged.shell.default = stricter(base.shell.default, overlay.shell.default);

@@ -12,8 +12,9 @@ shell:
   deny: []
 
 # --- v2 (opt-in) -------------------------------------------------------------
-# Add `version: 2` at the top of this file to enable the extended schema below.
-# v1 files (no `version`) keep working unchanged. Uncomment to adopt:
+# To adopt v2, first replace or comment out the active v1 `filesystem` mapping
+# above, then uncomment `version: 2` and the v2 `filesystem` block below.
+# v1 files (no `version`) keep working unchanged.
 #
 # version: 2
 #

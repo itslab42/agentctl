@@ -46,6 +46,7 @@ network:
 env:
   default: deny
   allow: ["NODE_ENV", "GITHUB_*"]
+  ask: ["CI"]
   deny: ["*_TOKEN"]
 mcp:
   default: ask
@@ -75,6 +76,27 @@ test("explicit version: 1 is accepted", () => {
     shell: { default: "ask" }
   });
   assert.equal(p.version, 1);
+});
+
+test("v2 fields require explicit version: 2", () => {
+  const base = {
+    policy: { precedence: "deny_over_allow" },
+    filesystem: { edit: "allow", write: "allow" },
+    shell: { default: "ask" }
+  };
+  for (const v2Field of [
+    { filesystem: { read: { default: "allow" }, write: "allow" } },
+    { filesystem: { edit: "allow", write: { default: "allow" } } },
+    { network: { default: "ask" } },
+    { env: { default: "deny" } },
+    { mcp: { default: "ask" } }
+  ]) {
+    assert.throws(() => parsePermissions({ ...base, ...v2Field }), /version: 2 is required/);
+    assert.throws(
+      () => parsePermissions({ ...base, ...v2Field, version: 1 }),
+      /version: 2 is required/
+    );
+  }
 });
 
 test("version must be 1 or 2", () => {
@@ -122,6 +144,15 @@ test("v2 filesystem may still use v1 scalar write alongside read block", () => {
   assert.equal(p.filesystem.writePaths, undefined);
 });
 
+test("scalar filesystem.read is accepted as the legacy edit permission", () => {
+  const p = parsePermissions({
+    policy: { precedence: "deny_over_allow" },
+    filesystem: { read: "ask", write: "allow" },
+    shell: { default: "ask" }
+  });
+  assert.equal(p.filesystem.edit, "ask");
+});
+
 // --- Network -----------------------------------------------------------------
 
 test("v2 network patterns parse and validate protocols", () => {
@@ -135,6 +166,7 @@ test("network patterns without a protocol are rejected", () => {
   assert.throws(
     () =>
       parsePermissions({
+        version: 2,
         policy: { precedence: "deny_over_allow" },
         filesystem: { edit: "allow", write: "allow" },
         shell: { default: "ask" },
@@ -151,12 +183,14 @@ test("v2 env name patterns parse", () => {
   assert.ok(p.env);
   assert.equal(p.env.default, "deny");
   assert.deepEqual(p.env.allow, ["NODE_ENV", "GITHUB_*"]);
+  assert.deepEqual(p.env.ask, ["CI"]);
 });
 
 test("env patterns containing = are rejected", () => {
   assert.throws(
     () =>
       parsePermissions({
+        version: 2,
         policy: { precedence: "deny_over_allow" },
         filesystem: { edit: "allow", write: "allow" },
         shell: { default: "ask" },
@@ -179,6 +213,7 @@ test("mcp patterns not in server:tool form are rejected", () => {
   assert.throws(
     () =>
       parsePermissions({
+        version: 2,
         policy: { precedence: "deny_over_allow" },
         filesystem: { edit: "allow", write: "allow" },
         shell: { default: "ask" },
@@ -194,6 +229,7 @@ test("a pattern in both allow and deny of a capability is rejected", () => {
   assert.throws(
     () =>
       parsePermissions({
+        version: 2,
         policy: { precedence: "deny_over_allow" },
         filesystem: { edit: "allow", write: "allow" },
         shell: { default: "ask" },
@@ -210,6 +246,7 @@ test("a pattern in both allow and ask of a capability is rejected", () => {
         version: 2,
         policy: { precedence: "deny_over_allow" },
         filesystem: {
+          edit: "allow",
           write: { default: "allow", allow: ["src/**"], ask: ["src/**"] }
         },
         shell: { default: "ask" }
@@ -277,6 +314,7 @@ test("Kiro emits an advisory comment for env (not natively enforceable)", () => 
   const output = renderKiro(p);
   assert.match(output, /env access is advisory in Kiro/);
   assert.match(output, /NODE_ENV/);
+  assert.match(output, /#   ask: CI/);
   assert.match(output, /\*_TOKEN/);
 });
 

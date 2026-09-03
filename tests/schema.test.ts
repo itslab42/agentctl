@@ -23,13 +23,28 @@ function loadYaml(path: string): unknown {
  * Minimal JSON Schema (draft-07 subset) validator. Supports only the keywords
  * used by the agentctl schemas: type, required, properties, additionalProperties
  * (boolean or schema), enum, const, items, minLength, minProperties, uniqueItems,
- * oneOf, and $ref (local "#/definitions/..." only). Returns a list of errors.
+ * allOf, oneOf, not, if/then/else, and $ref (local "#/definitions/..." only).
  */
 function validate(data: unknown, schema: JsonSchema, root: JsonSchema, path = "$"): string[] {
   const errors: string[] = [];
 
   if (typeof schema.$ref === "string") {
     return validate(data, resolveRef(schema.$ref, root), root, path);
+  }
+
+  if (Array.isArray(schema.allOf)) {
+    for (const sub of schema.allOf as JsonSchema[]) {
+      errors.push(...validate(data, sub, root, path));
+    }
+  }
+
+  if (isPlainObject(schema.not) && validate(data, schema.not, root, path).length === 0) {
+    errors.push(`${path}: matched disallowed schema`);
+  }
+
+  if (isPlainObject(schema.if)) {
+    const branch = validate(data, schema.if, root, path).length === 0 ? schema.then : schema.else;
+    if (isPlainObject(branch)) errors.push(...validate(data, branch, root, path));
   }
 
   if (Array.isArray(schema.oneOf)) {
@@ -131,6 +146,8 @@ function matchesType(data: unknown, type: string): boolean {
       return typeof data === "string";
     case "number":
       return typeof data === "number" && Number.isFinite(data);
+    case "integer":
+      return typeof data === "number" && Number.isInteger(data);
     case "boolean":
       return typeof data === "boolean";
     default:
@@ -236,6 +253,39 @@ test("permissions schema rejects invalid permission value", () => {
     shell: { default: "ask" }
   };
   assert.notEqual(validate(data, schema, schema).length, 0);
+});
+
+test("permissions schema requires version 2 for capability fields", () => {
+  const schema = loadJson(resolve(SCHEMAS_DIR, "permissions.schema.json"));
+  const base = {
+    policy: { precedence: "deny_over_allow" },
+    filesystem: { edit: "allow", write: "allow" },
+    shell: { default: "ask" }
+  };
+  const v2 = {
+    ...base,
+    version: 2,
+    network: { default: "ask" },
+    env: { default: "deny" },
+    mcp: { default: "ask" }
+  };
+
+  assert.deepEqual(validate(v2, schema, schema), []);
+  assert.deepEqual(
+    validate({ ...base, filesystem: { read: "ask", write: "allow" } }, schema, schema),
+    []
+  );
+  assert.notEqual(validate({ ...v2, version: 1 }, schema, schema).length, 0);
+  const { version: _version, ...implicitV1 } = v2;
+  assert.notEqual(validate(implicitV1, schema, schema).length, 0);
+  assert.notEqual(
+    validate(
+      { ...base, filesystem: { read: { default: "allow" }, write: "allow" } },
+      schema,
+      schema
+    ).length,
+    0
+  );
 });
 
 test("all schema files are valid JSON with draft-07 declaration", () => {

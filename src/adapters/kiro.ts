@@ -88,11 +88,13 @@ function renderPermissions(permissions: Permissions): string {
   // policy is not silently dropped.
   if (permissions.env) {
     const allow = permissions.env.allow.length ? permissions.env.allow.join(", ") : "(none)";
+    const ask = permissions.env.ask.length ? permissions.env.ask.join(", ") : "(none)";
     const deny = permissions.env.deny.length ? permissions.env.deny.join(", ") : "(none)";
     formatted +=
       `\n# env access is advisory in Kiro (not natively enforceable):\n` +
       `#   default: ${permissions.env.default}\n` +
       `#   allow: ${allow}\n` +
+      `#   ask: ${ask}\n` +
       `#   deny: ${deny}\n`;
   }
 

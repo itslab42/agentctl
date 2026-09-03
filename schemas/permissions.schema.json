@@ -6,6 +6,27 @@
   "type": "object",
   "required": ["policy", "filesystem", "shell"],
   "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "version": { "const": 2 } },
+        "required": ["version"]
+      },
+      "else": {
+        "properties": {
+          "filesystem": {
+            "properties": {
+              "read": { "$ref": "#/definitions/permissionValue" },
+              "write": { "$ref": "#/definitions/permissionValue" }
+            }
+          },
+          "network": { "not": {} },
+          "env": { "not": {} },
+          "mcp": { "not": {} }
+        }
+      }
+    }
+  ],
   "properties": {
     "version": {
       "type": "integer",
@@ -38,7 +59,7 @@
             { "$ref": "#/definitions/permissionValue" },
             { "$ref": "#/definitions/capability" }
           ],
-          "description": "v2: path-level read permissions."
+          "description": "Permission for reading/editing files. Scalar (v1 alias for edit) or path-level capability block (v2)."
         },
         "write": {
           "oneOf": [

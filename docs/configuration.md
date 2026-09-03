@@ -144,6 +144,7 @@ network:
 env:
   default: deny
   allow: ["NODE_ENV", "GITHUB_*"]
+  ask: ["CI"]
   deny: ["*_TOKEN", "*_KEY"]
 
 mcp:
