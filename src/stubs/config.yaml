@@ -2,6 +2,11 @@
 project:
   name: __PROJECT_NAME__
 
+# Optionally inherit a shared base policy. Local permissions can only tighten it.
+# extends: "https://raw.githubusercontent.com/myorg/policies/main/.ai/permissions.yaml"
+# extends: "@myorg/agent-policy/permissions.yaml"
+# extends: "../shared/.ai/permissions.yaml"
+
 runtimes:
   claude:
     enabled: true

@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseConfig } from "../src/config";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { loadSource, parseConfig } from "../src/config";
 
 const full = {
   project: { name: "test-project" },
@@ -110,5 +113,63 @@ test("parseConfig rejects invalid claude field types", () => {
   assert.throws(
     () => parseConfig({ ...full, claude: { alwaysThinkingEnabled: "yes" } }),
     /claude\.alwaysThinkingEnabled must be a boolean/
+  );
+});
+
+test("parseConfig parses extends field", () => {
+  const config = parseConfig({
+    ...full,
+    extends: "https://example.com/policy.yaml"
+  });
+  assert.equal(config.extends, "https://example.com/policy.yaml");
+});
+
+test("loadSource caches remote policies under the supplied project root", async () => {
+  const root = mkdtempSync(join(tmpdir(), "agentctl-config-"));
+  const aiDir = join(root, ".ai");
+  try {
+    mkdirSync(aiDir);
+    const policy = {
+      policy: { precedence: "deny_over_allow" },
+      filesystem: { edit: "allow", write: "allow" },
+      shell: { default: "ask", allow: [], deny: [] }
+    };
+    writeFileSync(
+      join(aiDir, "config.yaml"),
+      JSON.stringify({ ...full, extends: "https://example.com/policy.yaml" })
+    );
+    writeFileSync(join(aiDir, "permissions.yaml"), JSON.stringify(policy));
+
+    await loadSource(root, {
+      noUser: true,
+      inherit: {
+        fetchImpl: async () => ({
+          status: 200,
+          body: JSON.stringify(policy)
+        })
+      }
+    });
+
+    const cacheDir = join(aiDir, ".cache");
+    assert.ok(existsSync(cacheDir));
+    assert.ok(readdirSync(cacheDir).some((file) => file.endsWith(".json")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("parseConfig allows omitting extends", () => {
+  const config = parseConfig(full);
+  assert.equal(config.extends, undefined);
+});
+
+test("parseConfig rejects non-string extends", () => {
+  assert.throws(() => parseConfig({ ...full, extends: 42 }), /extends must be a string/);
+});
+
+test("parseConfig rejects empty extends", () => {
+  assert.throws(
+    () => parseConfig({ ...full, extends: "  " }),
+    /extends must be a non-empty string/
   );
 });

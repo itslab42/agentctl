@@ -19,6 +19,11 @@
         }
       }
     },
+    "extends": {
+      "type": "string",
+      "description": "Optional base policy to inherit from. May be an HTTPS URL, an npm package path (@scope/pkg/permissions.yaml), or a local file path. Local permissions are merged on top and can only tighten, never weaken, the inherited policy.",
+      "minLength": 1
+    },
     "runtimes": {
       "type": "object",
       "description": "Which AI coding-agent runtimes to generate configuration for. Any runtime omitted here defaults to disabled.",

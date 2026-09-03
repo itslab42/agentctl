@@ -130,6 +130,24 @@ function envFlag(args: string[]): string | undefined {
 }
 
 /**
+ * Derives inheritance options (`--refresh`, `--offline`, `--no-remote`) from
+ * the CLI argument list for use with policy `extends` resolution.
+ */
+function inheritFlags(args: string[]): {
+  refresh: boolean;
+  offline: boolean;
+  noRemote: boolean;
+  warn: (message: string) => void;
+} {
+  return {
+    refresh: args.includes("--refresh"),
+    offline: args.includes("--offline"),
+    noRemote: args.includes("--no-remote"),
+    warn: (message: string) => console.warn(color.cyan(`⚠ ${message}`))
+  };
+}
+
+/**
  * Validates all environment-specific permission overlays located beside the base permissions file.
  *
  * @param root - Project root directory
@@ -234,6 +252,8 @@ async function updateGitignore(root: string, configYaml: string): Promise<void> 
   const runtimes = parsed.runtimes ?? {};
 
   const paths = new Set<string>();
+  // Cached inherited policies should never be committed.
+  paths.add(".ai/.cache/");
   for (const [name, cfg] of Object.entries(runtimes)) {
     if (cfg.enabled && name in runtimeGitignorePaths) {
       for (const p of runtimeGitignorePaths[name]) paths.add(p);
@@ -647,7 +667,10 @@ async function runWatch(root: string): Promise<void> {
  */
 async function doSync(root: string): Promise<void> {
   try {
-    const source = await loadSource(root, { noUser: process.argv.includes("--no-user") });
+    const source = await loadSource(root, {
+      noUser: process.argv.includes("--no-user"),
+      inherit: inheritFlags(process.argv.slice(2))
+    });
     const files = expected(root, source);
     let count = 0;
     for (const file of files) {
@@ -691,7 +714,8 @@ async function runExplain(root: string, args: string[]): Promise<void> {
   try {
     source = await loadSource(root, {
       env: envFlag(explainArgs),
-      noUser: args.includes("--no-user")
+      noUser: args.includes("--no-user"),
+      inherit: inheritFlags(args)
     });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
@@ -794,7 +818,8 @@ async function runAudit(root: string, args: string[]): Promise<void> {
   try {
     source = await loadSource(root, {
       env: envFlag(auditArgs),
-      noUser: args.includes("--no-user")
+      noUser: args.includes("--no-user"),
+      inherit: inheritFlags(args)
     });
   } catch (error) {
     console.error(`❌ ${(error as Error).message}`);
@@ -1038,11 +1063,18 @@ async function main(): Promise<void> {
   }
   let source: Awaited<ReturnType<typeof loadSource>>;
   try {
-    source = await loadSource(root, { env: envFlag(args), noUser });
+    source = await loadSource(root, {
+      env: envFlag(args),
+      noUser,
+      inherit: inheritFlags(args)
+    });
   } catch (error) {
     console.error(`❌ Validation failed: ${(error as Error).message}`);
     process.exitCode = 1;
     return;
+  }
+  for (const warning of source.inheritanceWarnings ?? []) {
+    console.warn(color.cyan(`⚠ ${warning}`));
   }
   if (command === "validate") {
     try {
@@ -1052,6 +1084,9 @@ async function main(): Promise<void> {
       process.exitCode = 1;
       return;
     }
+    if (source.inheritedFrom) {
+      console.log(color.dim(`   inherits from: ${source.inheritedFrom}`));
+    }
     console.log("✅ .ai configuration is valid.");
     return;
   }
@@ -1059,6 +1094,24 @@ async function main(): Promise<void> {
 
   if (command === "status") {
     console.log(color.dim(`environment: ${source.env}\n`));
+    if (source.inheritedFrom) {
+      const { classifyTarget, cacheStatus } = await import("./inherit");
+      let freshness = "";
+      if (classifyTarget(source.inheritedFrom) === "https") {
+        const status = await cacheStatus(source.inheritedFrom, {
+          cacheDir: resolve(root, ".ai/.cache")
+        });
+        if (!status.cached) {
+          freshness = " (not cached)";
+        } else {
+          const age = status.fetchedAt
+            ? `${Math.round((Date.now() - status.fetchedAt) / 60000)}m ago`
+            : "unknown";
+          freshness = status.fresh ? ` (cached ${age}, fresh)` : ` (cached ${age}, stale)`;
+        }
+      }
+      console.log(color.dim(`extends: ${source.inheritedFrom}${freshness}\n`));
+    }
     let drift = false;
     for (const adapter of adapters) {
       const name = adapter.name as keyof typeof source.config.runtimes;
