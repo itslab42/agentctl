@@ -447,6 +447,7 @@ export async function resolveExtends(
       );
     }
 
+    const currentKind = classifyTarget(currentTarget);
     const key = canonicalKey(currentTarget, fromDir);
     if (seen.has(key)) {
       throw new Error(
@@ -469,8 +470,15 @@ export async function resolveExtends(
         ? (raw as Record<string, unknown>).extends
         : undefined;
     if (typeof parentExtends === "string" && parentExtends.trim().length > 0) {
-      const nextDir =
-        classifyTarget(currentTarget) === "local" ? dirForTarget(currentTarget, fromDir) : fromDir;
+      if (currentKind === "https" && classifyTarget(parentExtends) !== "https") {
+        throw new Error(
+          formatError({
+            message: `Remote policy ${currentTarget} cannot extend non-HTTPS target: ${parentExtends}`,
+            hint: "Remote policies may only extend other HTTPS URLs."
+          })
+        );
+      }
+      const nextDir = currentKind === "local" ? dirForTarget(currentTarget, fromDir) : fromDir;
       const ancestor = await resolveChain(parentExtends, nextDir, depth + 1);
       return mergeInheritedPermissions(ancestor, policy);
     }

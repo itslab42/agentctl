@@ -144,7 +144,7 @@ runtimes:
 
 - `agentctl sync --refresh` — force a re-fetch.
 - `agentctl sync --offline` — use the cache only (for CI without network).
-- `agentctl sync --no-remote` — disable all remote fetching (airgapped).
+- `agentctl sync --no-remote` — disable all remote fetching (air-gapped).
 
 **Safeguards:** only HTTPS URLs are allowed (HTTP is rejected), fetched content is validated before use, circular `extends` are detected, and nesting is capped at 3 levels. `agentctl validate` reports the inherited source; `agentctl status` shows the `extends` target and cache freshness.
 

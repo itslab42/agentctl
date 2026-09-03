@@ -385,7 +385,11 @@ export async function loadSource(
   const inheritanceWarnings: string[] = [];
   if (config.extends) {
     const configDir = dirname(configPath);
-    const base = await resolveExtends(config.extends, configDir, options.inherit ?? {});
+    const inheritOptions: InheritOptions = {
+      ...options.inherit,
+      cacheDir: options.inherit?.cacheDir ?? resolve(root, ".ai/.cache")
+    };
+    const base = await resolveExtends(config.extends, configDir, inheritOptions);
     const merged = mergeInheritedPermissions(base, permissions);
     const warning = denyListWarning(base, merged);
     if (warning) inheritanceWarnings.push(warning);

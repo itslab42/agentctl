@@ -398,6 +398,28 @@ test("resolveExtends: --no-remote rejects remote targets", async () => {
   }
 });
 
+test("resolveExtends: remote policies cannot extend local targets", async () => {
+  const dir = tmp();
+  try {
+    writeFileSync(join(dir, "local.yaml"), validYaml);
+    const fetchImpl: RemoteFetch = async () => ({
+      status: 200,
+      body: `extends: ./local.yaml\n${validYaml}`
+    });
+
+    await assert.rejects(
+      () =>
+        resolveExtends("https://example.com/policy.yaml", dir, {
+          fetchImpl,
+          cacheDir: join(dir, ".cache")
+        }),
+      /cannot extend non-HTTPS target/
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("resolveExtends: falls back to cache when network fails", async () => {
   const dir = tmp();
   const cacheDir = join(dir, ".cache");
@@ -431,11 +453,12 @@ test("resolveExtends: 304 Not Modified reuses cache", async () => {
   const cacheDir = join(dir, ".cache");
   try {
     let calls = 0;
+    const receivedHeaders: Parameters<RemoteFetch>[1][] = [];
     const fetchImpl: RemoteFetch = async (_url, headers) => {
       calls++;
+      receivedHeaders.push(headers);
       if (calls === 1) return { status: 200, body: validYaml, etag: '"v1"' };
       // Second call sends If-None-Match; server responds 304.
-      assert.equal(headers.etag, '"v1"');
       return { status: 304, body: "" };
     };
     const url = "https://example.com/permissions.yaml";
@@ -444,6 +467,7 @@ test("resolveExtends: 304 Not Modified reuses cache", async () => {
     const perms = await resolveExtends(url, dir, { fetchImpl, cacheDir, cacheTtlMs: 0 });
     assert.equal(perms.shell.default, "ask");
     assert.equal(calls, 2);
+    assert.equal(receivedHeaders[1]?.etag, '"v1"');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
