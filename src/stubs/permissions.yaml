@@ -10,3 +10,53 @@ shell:
   default: ask
   allow: []
   deny: []
+
+# --- v2 (opt-in) -------------------------------------------------------------
+# To adopt v2, first replace or comment out the active v1 `filesystem` mapping
+# above, then uncomment `version: 2` and the v2 `filesystem` block below.
+# v1 files (no `version`) keep working unchanged.
+#
+# version: 2
+#
+# # Path-level filesystem rules (deny → ask → allow → default):
+# filesystem:
+#   read:
+#     default: allow
+#     deny:
+#       - ".env*"
+#       - "**/*.pem"
+#       - "**/secrets/**"
+#   write:
+#     default: allow
+#     ask:
+#       - "*.config.*"
+#     deny:
+#       - ".git/**"
+#
+# # Network access (URL glob patterns, must start with a protocol or *://):
+# network:
+#   default: ask
+#   allow:
+#     - "https://registry.npmjs.org/*"
+#     - "https://api.github.com/*"
+#   deny:
+#     - "http://*"
+#
+# # Environment variable access (name patterns only):
+# env:
+#   default: deny
+#   allow:
+#     - "NODE_ENV"
+#     - "GITHUB_*"
+#   deny:
+#     - "*_TOKEN"
+#     - "*_KEY"
+#
+# # MCP tool access (<server>:<tool> or <server>:*):
+# mcp:
+#   default: ask
+#   allow:
+#     - "filesystem:*"
+#     - "postgres:query"
+#   deny:
+#     - "postgres:drop_table"

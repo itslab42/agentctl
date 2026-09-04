@@ -145,6 +145,38 @@ test("mergeOverlay: filesystem cannot loosen", () => {
   assert.equal(merged.filesystem.write, "deny");
 });
 
+test("mergeOverlay: filesystem scalars tighten v2 path capabilities", () => {
+  const base = baseline();
+  base.version = 2;
+  base.filesystem.read = {
+    default: "allow",
+    allow: ["src/**"],
+    ask: ["config/**"],
+    deny: [".env*"]
+  };
+  base.filesystem.writePaths = {
+    default: "allow",
+    allow: ["dist/**"],
+    ask: [],
+    deny: [".git/**"]
+  };
+
+  const merged = mergeOverlay(base, { filesystem: { edit: "ask", write: "deny" } });
+
+  assert.deepEqual(merged.filesystem.read, {
+    default: "ask",
+    allow: [],
+    ask: ["config/**", "src/**"],
+    deny: [".env*"]
+  });
+  assert.deepEqual(merged.filesystem.writePaths, {
+    default: "deny",
+    allow: [],
+    ask: [],
+    deny: [".git/**"]
+  });
+});
+
 test("mergeOverlay: newly denied pattern is removed from allow (deny_over_allow invariant)", () => {
   const merged = mergeOverlay(baseline(), { shell: { deny: ["docker *"] } });
   assert.ok(merged.shell.deny.includes("docker *"));

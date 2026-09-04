@@ -1,5 +1,10 @@
 import { stringify, parse as yamlParse } from "yaml";
-import { Permissions, PermissionValue, GENERATED_MARKER } from "../permissions";
+import {
+  Permissions,
+  PermissionValue,
+  CapabilityPermissions,
+  GENERATED_MARKER
+} from "../permissions";
 import { McpConfig } from "../mcp";
 import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
 
@@ -14,11 +19,36 @@ interface KiroRule {
   exclude?: string[];
 }
 
+/**
+ * Emit deny → ask → allow → default rules for a v2 capability block against a
+ * single Kiro capability name (e.g. `fs_read`, `web_fetch`, `mcp`).
+ */
+function capabilityRules(name: string, cap: CapabilityPermissions): KiroRule[] {
+  const rules: KiroRule[] = [];
+  if (cap.deny.length > 0) rules.push({ capability: name, effect: "deny", match: [...cap.deny] });
+  if (cap.ask.length > 0) rules.push({ capability: name, effect: "ask", match: [...cap.ask] });
+  if (cap.allow.length > 0)
+    rules.push({ capability: name, effect: "allow", match: [...cap.allow] });
+  rules.push({ capability: name, effect: cap.default });
+  return rules;
+}
+
 function renderPermissions(permissions: Permissions): string {
   const rules: KiroRule[] = [];
 
-  rules.push({ capability: "fs_read", effect: "allow", match: ["**"] });
-  rules.push({ capability: "fs_write", effect: permissions.filesystem.write, match: ["**"] });
+  // Filesystem read: v2 path-level rules if present, else blanket allow.
+  if (permissions.filesystem.read) {
+    rules.push(...capabilityRules("fs_read", permissions.filesystem.read));
+  } else {
+    rules.push({ capability: "fs_read", effect: "allow", match: ["**"] });
+  }
+
+  // Filesystem write: v2 path-level rules if present, else blanket scalar.
+  if (permissions.filesystem.writePaths) {
+    rules.push(...capabilityRules("fs_write", permissions.filesystem.writePaths));
+  } else {
+    rules.push({ capability: "fs_write", effect: permissions.filesystem.write, match: ["**"] });
+  }
 
   if (permissions.shell.deny.length > 0) {
     rules.push({
@@ -38,10 +68,36 @@ function renderPermissions(permissions: Permissions): string {
 
   rules.push({ capability: "shell", effect: permissions.shell.default });
 
+  // v2: network → Kiro web_search + web_fetch capabilities.
+  if (permissions.network) {
+    rules.push(...capabilityRules("web_search", permissions.network));
+    rules.push(...capabilityRules("web_fetch", permissions.network));
+  }
+
+  // v2: MCP tool permissions → Kiro `mcp` capability rules.
+  if (permissions.mcp) {
+    rules.push(...capabilityRules("mcp", permissions.mcp));
+  }
+
   const output = stringify({ rules }, { lineWidth: 120 });
-  const formatted = output
+  let formatted = output
     .replace(/\n  - capability:/g, "\n\n  - capability:")
     .replace("rules:\n\n", "rules:\n");
+
+  // v2: env vars cannot be enforced by Kiro — emit an advisory comment so the
+  // policy is not silently dropped.
+  if (permissions.env) {
+    const allow = permissions.env.allow.length ? permissions.env.allow.join(", ") : "(none)";
+    const ask = permissions.env.ask.length ? permissions.env.ask.join(", ") : "(none)";
+    const deny = permissions.env.deny.length ? permissions.env.deny.join(", ") : "(none)";
+    formatted +=
+      `\n# env access is advisory in Kiro (not natively enforceable):\n` +
+      `#   default: ${permissions.env.default}\n` +
+      `#   allow: ${allow}\n` +
+      `#   ask: ${ask}\n` +
+      `#   deny: ${deny}\n`;
+  }
+
   return `# ${GENERATED_MARKER}\n${formatted}`;
 }
 

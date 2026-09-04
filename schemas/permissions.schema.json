@@ -6,7 +6,33 @@
   "type": "object",
   "required": ["policy", "filesystem", "shell"],
   "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "version": { "const": 2 } },
+        "required": ["version"]
+      },
+      "else": {
+        "properties": {
+          "filesystem": {
+            "properties": {
+              "read": { "$ref": "#/definitions/permissionValue" },
+              "write": { "$ref": "#/definitions/permissionValue" }
+            }
+          },
+          "network": { "not": {} },
+          "env": { "not": {} },
+          "mcp": { "not": {} }
+        }
+      }
+    }
+  ],
   "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [1, 2],
+      "description": "Schema version. Omit or use 1 for the original blanket model; use 2 for path-level filesystem plus network/env/mcp sections."
+    },
     "policy": {
       "type": "object",
       "description": "Precedence policy for resolving conflicting rules.",
@@ -21,17 +47,26 @@
     },
     "filesystem": {
       "type": "object",
-      "description": "Filesystem edit and write permissions.",
-      "required": ["edit", "write"],
+      "description": "Filesystem permissions. v1 uses blanket edit/write scalars; v2 may express read/write as path-level capability blocks.",
       "additionalProperties": true,
       "properties": {
         "edit": {
           "$ref": "#/definitions/permissionValue",
-          "description": "Permission for editing existing files."
+          "description": "v1: blanket permission for editing existing files."
+        },
+        "read": {
+          "oneOf": [
+            { "$ref": "#/definitions/permissionValue" },
+            { "$ref": "#/definitions/capability" }
+          ],
+          "description": "Permission for reading/editing files. Scalar (v1 alias for edit) or path-level capability block (v2)."
         },
         "write": {
-          "$ref": "#/definitions/permissionValue",
-          "description": "Permission for creating/writing files."
+          "oneOf": [
+            { "$ref": "#/definitions/permissionValue" },
+            { "$ref": "#/definitions/capability" }
+          ],
+          "description": "Permission for creating/writing files. Scalar (v1) or path-level capability block (v2)."
         }
       }
     },
@@ -64,6 +99,18 @@
           "uniqueItems": true
         }
       }
+    },
+    "network": {
+      "$ref": "#/definitions/capability",
+      "description": "v2: network access control keyed by URL glob patterns (deny_over_allow)."
+    },
+    "env": {
+      "$ref": "#/definitions/capability",
+      "description": "v2: environment variable access control keyed by name glob patterns."
+    },
+    "mcp": {
+      "$ref": "#/definitions/capability",
+      "description": "v2: MCP tool access control keyed by <server>:<tool> or <server>:* patterns."
     }
   },
   "definitions": {
@@ -71,6 +118,30 @@
       "type": "string",
       "enum": ["allow", "ask", "deny"],
       "description": "Permission decision: allow, ask, or deny."
+    },
+    "capability": {
+      "type": "object",
+      "description": "A capability governed by a default decision plus optional allow/deny/ask pattern lists (deny_over_allow).",
+      "required": ["default"],
+      "additionalProperties": true,
+      "properties": {
+        "default": { "$ref": "#/definitions/permissionValue" },
+        "allow": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "deny": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "ask": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
     }
   }
 }

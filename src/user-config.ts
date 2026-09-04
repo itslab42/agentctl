@@ -119,15 +119,21 @@ export function mergeUserPermissions(user: Permissions, project: Permissions): P
   const finalDeny = [...denySet];
 
   return {
+    version: project.version,
     policy: { precedence: "deny_over_allow" },
     filesystem: {
       edit: project.filesystem.edit,
-      write: project.filesystem.write
+      write: project.filesystem.write,
+      ...(project.filesystem.read ? { read: project.filesystem.read } : {}),
+      ...(project.filesystem.writePaths ? { writePaths: project.filesystem.writePaths } : {})
     },
     shell: {
       default: project.shell.default,
       allow: finalAllow,
       deny: finalDeny
-    }
+    },
+    ...(project.network ? { network: project.network } : {}),
+    ...(project.env ? { env: project.env } : {}),
+    ...(project.mcp ? { mcp: project.mcp } : {})
   };
 }
