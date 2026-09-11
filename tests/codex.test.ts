@@ -60,6 +60,25 @@ test("Codex config maps shell.default=deny to never", () => {
   assert.match(renderCodexConfig(denyAll), /approval_policy = "never"/);
 });
 
+test("globToRegexSource escapes regex metacharacters (matches literally)", () => {
+  // Dots, parens, plus, dollar, braces are escaped; only * becomes a wildcard.
+  assert.equal(globToRegexSource(".env*"), "^\\.env.*$");
+  assert.equal(globToRegexSource("a.b(c)+d"), "^a\\.b\\(c\\)\\+d$");
+  assert.equal(globToRegexSource("https://api.github.com/*"), "^https://api\\.github\\.com/.*$");
+  assert.equal(globToRegexSource("*.config.*"), "^.*\\.config\\..*$");
+});
+
+test("globToRegexSource escaped dots do not match arbitrary characters", () => {
+  const re = new RegExp(globToRegexSource(".env*"));
+  assert.ok(re.test(".env"), ".env should match .env*");
+  assert.ok(re.test(".env.local"), ".env.local should match .env*");
+  assert.ok(!re.test("Xenv"), "Xenv must NOT match .env* (dot is escaped)");
+
+  const url = new RegExp(globToRegexSource("https://api.github.com/*"));
+  assert.ok(url.test("https://api.github.com/repos"));
+  assert.ok(!url.test("https://apiXgithubXcom/x"), "dots must not act as wildcards");
+});
+
 test("glob conversion and generated hook block only dangerous Bash commands", () => {
   assert.equal(globToRegexSource("git push*"), "^git push.*$");
   const dir = mkdtempSync(join(tmpdir(), "agentctl-test-"));
