@@ -170,6 +170,26 @@ runtimes:
 - **Cursor**: Filesystem permissions rendered in the MDC rule file.
 - **Kiro**: `fs_read`/`fs_write` rules in permissions.yaml.
 
+### Permissions v2 capability coverage
+
+`version: 2` policies add path-level `filesystem.read`/`write` and top-level `network`, `env`, and `mcp` capability blocks. Coverage per runtime:
+
+| v2 capability             | Claude       | Codex        | OpenCode     | Cursor       | Kiro         |
+| ------------------------- | ------------ | ------------ | ------------ | ------------ | ------------ |
+| `filesystem.read` (path)  | ✓            | ✓ (hook)     | ✓            | ~ (advisory) | ✓            |
+| `filesystem.write` (path) | ✓            | ✓ (hook)     | ✓            | ~ (advisory) | ✓            |
+| `network`                 | ✓ (WebFetch) | ✓ (hook)     | ✓            | ~ (advisory) | ✓            |
+| `env`                     | ~ (advisory) | ~ (advisory) | ~ (advisory) | ~ (advisory) | ~ (advisory) |
+| `mcp` tool perms          | ~ (advisory) | ~ (advisory) | ~ (advisory) | ~ (advisory) | ✓            |
+
+`✓` = natively enforced. `~ (advisory)` = rendered as guidance/comments because the runtime has no native mechanism — the policy is surfaced (never silently dropped) but not machine-enforced.
+
+- **Claude**: path-level fs → scoped `Read`/`Edit`/`Write` entries; `network` → `WebFetch(domain:…)` entries. `env`/`mcp` have no native control and are emitted under `_advisory`.
+- **Codex**: path-level fs and `network` are enforced by extending the PreToolUse hook to the `Read`/`Edit`/`Write`/`WebFetch` tools. `env`/`mcp` are emitted as advisory comments in the hook.
+- **OpenCode**: path-level fs → native `read`/`edit` object maps; `network` → native `webfetch`/`websearch`. `env`/`mcp` are emitted under `_advisory`.
+- **Cursor**: all v2 capabilities are rendered as advisory sections in the MDC rule.
+- **Kiro**: path-level fs, `network`, and `mcp` are native rules; `env` is advisory.
+
 ## Development
 
 ```bash
