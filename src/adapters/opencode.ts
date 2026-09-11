@@ -1,5 +1,5 @@
 import { Permissions, PermissionValue, GENERATED_MARKER } from "../permissions";
-import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
+import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile, V2Capability } from "../adapter";
 import { McpConfig } from "../mcp";
 
 const PATHS = [".opencode/opencode.json"];
@@ -82,6 +82,10 @@ function parse(raw: string): DetectedRuntime {
 export const opencodeAdapter: Adapter = {
   name: "opencode",
   paths: PATHS,
+
+  // OpenCode only enforces the v1 blanket edit/write + shell permissions. It
+  // cannot enforce any path-level or top-level v2 capability.
+  capabilities: new Set<V2Capability>(),
 
   render(permissions: Permissions, options?: AdapterOptions): GeneratedFile[] {
     return [{ path: PATHS[0], content: render(permissions, options?.mcp) }];

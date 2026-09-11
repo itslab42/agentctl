@@ -9,7 +9,7 @@ import { parsePermissionsOverlay } from "./permissions";
 import { unifiedDiff, colorize } from "./diff";
 import { color, setForceColor } from "./color";
 import { addPattern, mutatePermissions, removePattern } from "./mutate";
-import { adapters } from "./adapter";
+import { adapters, unenforceableCapabilityWarnings } from "./adapter";
 import { scan } from "./scan";
 import {
   resolveForRuntime,
@@ -145,6 +145,22 @@ function inheritFlags(args: string[]): {
     noRemote: args.includes("--no-remote"),
     warn: (message: string) => console.warn(color.cyan(`⚠ ${message}`))
   };
+}
+
+/**
+ * Prints advisory warnings (to stderr) for every declared v2 capability that an
+ * enabled runtime cannot enforce. Warnings honor `--color`/`--no-color` via the
+ * shared `color` helper and never change the process exit code.
+ *
+ * @param source - The loaded project source (permissions + runtime config)
+ */
+function warnUnenforceableCapabilities(source: Awaited<ReturnType<typeof loadSource>>): void {
+  const enabledRuntimes = adapters
+    .filter((a) => source.config.runtimes[a.name as keyof typeof source.config.runtimes].enabled)
+    .map((a) => a.name);
+  for (const warning of unenforceableCapabilityWarnings(source.permissions, enabledRuntimes)) {
+    console.warn(color.cyan(`⚠ ${warning.message}`));
+  }
 }
 
 /**
@@ -671,6 +687,7 @@ async function doSync(root: string): Promise<void> {
       noUser: process.argv.includes("--no-user"),
       inherit: inheritFlags(process.argv.slice(2))
     });
+    warnUnenforceableCapabilities(source);
     const files = expected(root, source);
     let count = 0;
     for (const file of files) {
@@ -1094,6 +1111,7 @@ async function main(): Promise<void> {
 
   if (command === "status") {
     console.log(color.dim(`environment: ${source.env}\n`));
+    warnUnenforceableCapabilities(source);
     if (source.inheritedFrom) {
       const { classifyTarget, cacheStatus } = await import("./inherit");
       let freshness = "";
@@ -1151,6 +1169,7 @@ async function main(): Promise<void> {
     if (source.env !== "local") {
       console.log(color.dim(`   environment: ${source.env} (overlay applied)\n`));
     }
+    warnUnenforceableCapabilities(source);
     for (const file of files) {
       await mkdir(resolve(file.path, ".."), { recursive: true });
       await writeFile(file.path, file.content, "utf8");
@@ -1162,6 +1181,7 @@ async function main(): Promise<void> {
   }
   let drift = false;
   if (command === "check") console.log("🔍 Checking agent configurations...\n");
+  if (command === "check") warnUnenforceableCapabilities(source);
   for (const file of files) {
     const before = await current(file.path);
     const differs =
