@@ -1,7 +1,7 @@
 import { Permissions, PermissionValue, GENERATED_MARKER } from "../permissions";
 import { ClaudeSettings, claudeDefaults } from "../config";
 import { McpConfig } from "../mcp";
-import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
+import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile, V2Capability } from "../adapter";
 
 const PATHS = [".claude/settings.json"];
 
@@ -92,6 +92,10 @@ function parse(raw: string): DetectedRuntime {
 export const claudeAdapter: Adapter = {
   name: "claude",
   paths: PATHS,
+
+  // Claude only enforces the v1 blanket filesystem/shell scalars. It cannot
+  // enforce any path-level or top-level v2 capability.
+  capabilities: new Set<V2Capability>(),
 
   render(permissions: Permissions, options?: AdapterOptions): GeneratedFile[] {
     return [

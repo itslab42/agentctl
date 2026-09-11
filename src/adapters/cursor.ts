@@ -1,6 +1,6 @@
 import { Permissions, PermissionValue, GENERATED_MARKER } from "../permissions";
 import { McpConfig } from "../mcp";
-import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
+import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile, V2Capability } from "../adapter";
 
 const RULE_PATH = ".cursor/rules/agentctl-permissions/RULE.md";
 const MCP_PATH = ".cursor/mcp.json";
@@ -120,6 +120,10 @@ function parse(raw: string): DetectedRuntime {
 export const cursorAdapter: Adapter = {
   name: "cursor",
   paths: PATHS,
+
+  // Cursor renders advisory prose for the v1 blanket filesystem/shell rules
+  // only. It cannot enforce any path-level or top-level v2 capability.
+  capabilities: new Set<V2Capability>(),
 
   render(permissions: Permissions, options?: AdapterOptions): GeneratedFile[] {
     const files: GeneratedFile[] = [{ path: RULE_PATH, content: renderRule(permissions) }];

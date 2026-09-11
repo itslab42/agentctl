@@ -6,7 +6,7 @@ import {
   GENERATED_MARKER
 } from "../permissions";
 import { McpConfig } from "../mcp";
-import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
+import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile, V2Capability } from "../adapter";
 
 const PERMISSIONS_PATH = ".kiro/settings/permissions.yaml";
 const MCP_PATH = ".kiro/mcp.json";
@@ -162,6 +162,11 @@ function parse(raw: string): DetectedRuntime {
 export const kiroAdapter: Adapter = {
   name: "kiro",
   paths: PATHS,
+
+  // Kiro natively enforces path-level filesystem read/write, network (via
+  // web_search/web_fetch), and MCP tool rules. `env` is only rendered as an
+  // advisory comment (Kiro has no native env enforcement), so it is NOT listed.
+  capabilities: new Set<V2Capability>(["filesystemRead", "filesystemWrite", "network", "mcp"]),
 
   render(permissions: Permissions, options?: AdapterOptions): GeneratedFile[] {
     const files: GeneratedFile[] = [

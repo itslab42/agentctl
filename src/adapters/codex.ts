@@ -1,5 +1,5 @@
 import { Permissions, PermissionValue, globToRegexSource, GENERATED_MARKER } from "../permissions";
-import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
+import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile, V2Capability } from "../adapter";
 import { CodexSettings, codexDefaults } from "../config";
 import { regexSourceToGlob } from "../scan";
 
@@ -120,6 +120,10 @@ export function parseCodexHook(raw: string): { allow: string[]; deny: string[] }
 export const codexAdapter: Adapter = {
   name: "codex",
   paths: PATHS,
+
+  // Codex only enforces the v1 blanket filesystem sandbox + shell hook. It
+  // cannot enforce any path-level or top-level v2 capability.
+  capabilities: new Set<V2Capability>(),
 
   render(permissions: Permissions, options?: AdapterOptions): GeneratedFile[] {
     return [
