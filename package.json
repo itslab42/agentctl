@@ -57,7 +57,7 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.1",
     "lefthook": "^2.1.12",
     "oxc-minify": "^0.148.0",
     "oxfmt": "^0.67.0",
