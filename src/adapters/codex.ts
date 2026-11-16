@@ -14,7 +14,34 @@ function renderConfig(permissions: Permissions): string {
       : permissions.shell.default === "deny"
         ? "never"
         : "auto";
-  return `# ${GENERATED_MARKER}\napproval_policy = "${approval}"\nsandbox_mode = "${writable ? "workspace-write" : "read-only"}"\n\n[hooks.PreToolUse]\nBash = ".codex/hooks/permission-policy.py"\n`;
+
+  // v2: when path-level filesystem or network policies are present, register
+  // the same hook for the corresponding tools so the policy is enforced there
+  // too (not just for Bash).
+  const hookTools = ["Bash"];
+  if (permissions.filesystem.read) hookTools.push("Read");
+  if (permissions.filesystem.writePaths) hookTools.push("Edit", "Write");
+  if (permissions.network) hookTools.push("WebFetch");
+  const hookLines = hookTools
+    .map((tool) => `${tool} = ".codex/hooks/permission-policy.py"`)
+    .join("\n");
+
+  return `# ${GENERATED_MARKER}\napproval_policy = "${approval}"\nsandbox_mode = "${writable ? "workspace-write" : "read-only"}"\n\n[hooks.PreToolUse]\n${hookLines}\n`;
+}
+
+/** Maps a v2 capability block into allow/deny regex-source pattern arrays. */
+function capabilityToRegex(cap: {
+  allow: string[];
+  deny: string[];
+  ask: string[];
+  default: PermissionValue;
+}): { allow: string[]; deny: string[]; ask: string[]; default: PermissionValue } {
+  return {
+    allow: cap.allow.map(globToRegexSource),
+    deny: cap.deny.map(globToRegexSource),
+    ask: cap.ask.map(globToRegexSource),
+    default: cap.default
+  };
 }
 
 function renderHook(permissions: Permissions, settings: CodexSettings = codexDefaults): string {
@@ -22,16 +49,57 @@ function renderHook(permissions: Permissions, settings: CodexSettings = codexDef
   const allowPatterns = permissions.shell.allow.map(globToRegexSource);
   const notifyOnDeny = settings.notifyOnDeny;
 
+  // v2 capability policies keyed by the tool name they govern. Each entry
+  // enforces deny → ask → allow → default against the tool's path/URL input.
+  const fsRead = permissions.filesystem.read
+    ? capabilityToRegex(permissions.filesystem.read)
+    : null;
+  const fsWrite = permissions.filesystem.writePaths
+    ? capabilityToRegex(permissions.filesystem.writePaths)
+    : null;
+  const network = permissions.network ? capabilityToRegex(permissions.network) : null;
+
+  const capabilityPolicies: Record<string, unknown> = {};
+  if (fsRead) capabilityPolicies.Read = { field: "path", ...fsRead };
+  if (fsWrite) {
+    capabilityPolicies.Edit = { field: "path", ...fsWrite };
+    capabilityPolicies.Write = { field: "path", ...fsWrite };
+  }
+  if (network) capabilityPolicies.WebFetch = { field: "url", ...network };
+
+  // v2: env and MCP tool permissions have no Codex hook equivalent — surface
+  // them as advisory comments so the policy is not silently dropped.
+  const advisory: string[] = [];
+  const fmt = (list: string[]): string => (list.length ? list.join(", ") : "(none)");
+  for (const [name, cap] of [
+    ["env", permissions.env],
+    ["mcp", permissions.mcp]
+  ] as const) {
+    if (!cap) continue;
+    advisory.push(
+      `# ${name} access is advisory in Codex (not natively enforceable):`,
+      `#   default: ${cap.default}`,
+      `#   allow: ${fmt(cap.allow)}`,
+      `#   ask: ${fmt(cap.ask)}`,
+      `#   deny: ${fmt(cap.deny)}`
+    );
+  }
+  const advisoryComment = advisory.length ? `${advisory.join("\n")}\n` : "";
+
   return `#!/usr/bin/env python3
 # ${GENERATED_MARKER}
 # Source: .ai/permissions.yaml
-import json
+${advisoryComment}import json
 import re
 import sys
 
 DENY_PATTERNS = ${JSON.stringify(denyPatterns, null, 2)}
 
 ALLOW_PATTERNS = ${JSON.stringify(allowPatterns, null, 2)}
+
+# v2 capability policies keyed by tool name. Each governs a tool_input field
+# (path or url) with deny -> ask -> allow -> default precedence.
+CAPABILITY_POLICIES = ${JSON.stringify(capabilityPolicies, null, 2)}
 
 NOTIFY_ON_DENY = ${notifyOnDeny ? "True" : "False"}
 
@@ -43,19 +111,55 @@ def deny(reason: str) -> None:
     print(json.dumps({"permissionDecision": "deny", "permissionDecisionReason": reason}))
 
 
+def allow(reason: str) -> None:
+    """Emit an allow decision."""
+    print(json.dumps({"permissionDecision": "allow", "permissionDecisionReason": reason}))
+
+
+def ask(reason: str) -> None:
+    """Emit an ask decision."""
+    print(json.dumps({"permissionDecision": "ask", "permissionDecisionReason": reason}))
+
+
+def enforce_capability(policy: dict, value: str) -> None:
+    """Apply deny -> ask -> allow -> default precedence to a capability value."""
+    if any(re.match(p, value) for p in policy["deny"]):
+        deny("Blocked by agentctl policy")
+        return
+    if any(re.match(p, value) for p in policy["ask"]):
+        ask("Approval required by agentctl policy")
+        return
+    if any(re.match(p, value) for p in policy["allow"]):
+        allow("Approved by agentctl policy")
+        return
+    default = policy["default"]
+    if default == "deny":
+        deny("Blocked by agentctl default policy")
+    elif default == "ask":
+        ask("Approval required by agentctl default policy")
+
+
 def main() -> None:
     try:
         invocation = json.load(sys.stdin)
     except json.JSONDecodeError:
         return
-    if invocation.get("tool_name") != "Bash":
+    tool_name = invocation.get("tool_name")
+    tool_input = invocation.get("tool_input", {})
+
+    if tool_name == "Bash":
+        command = tool_input.get("command", "")
+        if any(re.match(pattern, command) for pattern in DENY_PATTERNS):
+            deny("Blocked by agentctl shell deny policy")
+            return
+        if any(re.match(pattern, command) for pattern in ALLOW_PATTERNS):
+            allow("Approved by agentctl shell allow policy")
         return
-    command = invocation.get("tool_input", {}).get("command", "")
-    if any(re.match(pattern, command) for pattern in DENY_PATTERNS):
-        deny("Blocked by agentctl shell deny policy")
-        return
-    if any(re.match(pattern, command) for pattern in ALLOW_PATTERNS):
-        print(json.dumps({"permissionDecision": "allow", "permissionDecisionReason": "Approved by agentctl shell allow policy"}))
+
+    policy = CAPABILITY_POLICIES.get(tool_name)
+    if policy is not None:
+        value = tool_input.get(policy["field"], "")
+        enforce_capability(policy, value)
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,9 @@
-import { Permissions, PermissionValue, GENERATED_MARKER } from "../permissions";
+import {
+  Permissions,
+  PermissionValue,
+  CapabilityPermissions,
+  GENERATED_MARKER
+} from "../permissions";
 import { McpConfig } from "../mcp";
 import { Adapter, AdapterOptions, DetectedRuntime, GeneratedFile } from "../adapter";
 
@@ -27,6 +32,33 @@ function renderMcp(mcp: McpConfig): string {
   return `${JSON.stringify({ mcpServers: renderMcpServers(mcp) }, null, 2)}\n`;
 }
 
+/**
+ * Renders a v2 capability block ({ default, allow, ask, deny }) as advisory
+ * markdown bullet lines. Cursor has no native enforcement, so every v2 section
+ * is expressed as guidance the agent is asked to follow.
+ */
+function renderCapabilityLines(cap: CapabilityPermissions): string[] {
+  const lines: string[] = [];
+  lines.push(`Default policy: ${cap.default}`);
+  lines.push("");
+  if (cap.deny.length > 0) {
+    lines.push("Denied:");
+    for (const pattern of cap.deny) lines.push(`- \`${pattern}\``);
+    lines.push("");
+  }
+  if (cap.ask.length > 0) {
+    lines.push("Ask first:");
+    for (const pattern of cap.ask) lines.push(`- \`${pattern}\``);
+    lines.push("");
+  }
+  if (cap.allow.length > 0) {
+    lines.push("Allowed:");
+    for (const pattern of cap.allow) lines.push(`- \`${pattern}\``);
+    lines.push("");
+  }
+  return lines;
+}
+
 function renderRule(permissions: Permissions): string {
   const lines: string[] = [];
 
@@ -44,6 +76,19 @@ function renderRule(permissions: Permissions): string {
   lines.push(`- File editing: ${permissions.filesystem.edit}`);
   lines.push(`- File creation/write: ${permissions.filesystem.write}`);
   lines.push("");
+
+  // v2: path-level filesystem read/write rules (advisory).
+  if (permissions.filesystem.read) {
+    lines.push("### Read paths");
+    lines.push("");
+    lines.push(...renderCapabilityLines(permissions.filesystem.read));
+  }
+  if (permissions.filesystem.writePaths) {
+    lines.push("### Write paths");
+    lines.push("");
+    lines.push(...renderCapabilityLines(permissions.filesystem.writePaths));
+  }
+
   lines.push("## Shell Commands");
   lines.push("");
   lines.push(`Default policy: ${permissions.shell.default}`);
@@ -65,6 +110,23 @@ function renderRule(permissions: Permissions): string {
       lines.push(`- \`${pattern}\``);
     }
     lines.push("");
+  }
+
+  // v2: network, env, and MCP tool permissions (advisory).
+  if (permissions.network) {
+    lines.push("## Network");
+    lines.push("");
+    lines.push(...renderCapabilityLines(permissions.network));
+  }
+  if (permissions.env) {
+    lines.push("## Environment Variables");
+    lines.push("");
+    lines.push(...renderCapabilityLines(permissions.env));
+  }
+  if (permissions.mcp) {
+    lines.push("## MCP Tools");
+    lines.push("");
+    lines.push(...renderCapabilityLines(permissions.mcp));
   }
 
   return lines.join("\n");

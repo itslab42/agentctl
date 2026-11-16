@@ -467,9 +467,12 @@ export function resolveEnv(explicit?: string, env: NodeJS.ProcessEnv = process.e
 /**
  * Converts a glob pattern into an anchored regular expression source string.
  *
+ * Regex metacharacters (`. + ^ $ { } ( ) | [ ] \`) are escaped so they match
+ * literally; only `*` is treated as a wildcard and expands to `.*`.
+ *
  * @param glob - The glob pattern, including optional `*` wildcards
  * @returns A regular expression source string that matches the entire input
  */
 export function globToRegexSource(glob: string): string {
-  return "^" + glob.replace(/[.+^${}()|[\\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$";
+  return "^" + glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$";
 }
